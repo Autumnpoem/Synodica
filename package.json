@@ -1,0 +1,48 @@
+{
+  "name": "synodica",
+  "version": "0.5.1",
+  "private": true,
+  "type": "module",
+  "description": "A multi-model team workspace for project delivery and research: reusable personas, shared conversations, task review, desktop companions and usage visibility.",
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "tsx watch server/index.ts",
+    "dev:client": "vite",
+    "build": "tsc -p tsconfig.server.json && vite build",
+    "start": "node dist/server/index.js",
+    "typecheck": "tsc -p tsconfig.server.json --noEmit && tsc -p tsconfig.client.json --noEmit",
+    "test": "tsc -p tsconfig.server.json && node --test dist/server/*.test.js",
+    "desktop": "node desktop/launch.cjs",
+    "pet:install": "node scripts/pet-install.mjs",
+    "package:mac": "npm run build && electron-builder --config electron-builder.cjs --mac --publish never",
+    "package:win": "npm run build && electron-builder --config electron-builder.cjs --win zip --x64 --publish never",
+    "package:dir": "npm run build && electron-builder --config electron-builder.cjs --dir --publish never",
+    "test:client": "node --import tsx --test server/*.test.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.3.270",
+    "express": "^4.21.2",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.5.0",
+    "concurrently": "^9.1.2",
+    "electron": "^38.8.6",
+    "electron-builder": "26.18.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vite": "^6.3.0"
+  },
+  "main": "desktop/main.cjs",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Autumnpoem/Synodica.git"
+  },
+  "homepage": "https://github.com/Autumnpoem/Synodica"
+}

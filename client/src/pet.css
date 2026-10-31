@@ -1,0 +1,344 @@
+/* ---------- the companion pet (in-page and desktop overlay) ---------- */
+/* Original, code-drawn shapes. Poses come from the .pres-* class; .is-still and reduced motion stop all animation. */
+
+.pet-layer {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+}
+
+.pet-layer > * {
+  pointer-events: auto;
+}
+
+.pet {
+  --pet-light: #6b7280;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  max-width: 260px;
+}
+
+.pet-layer.is-left .pet {
+  align-items: flex-start;
+}
+
+.pet-layer.is-top .pet {
+  flex-direction: column-reverse;
+}
+
+.pet-bubble {
+  max-width: 250px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(28, 28, 28, 0.96);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.4);
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--text, #f2f2f2);
+}
+
+.pet-who {
+  font-weight: 700;
+  color: var(--text-muted, #a3a3a3);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pet-state {
+  font-weight: 600;
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+}
+
+.pet-glyph {
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+  padding: 0 4px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.pet-task,
+.pet-detail,
+.pet-meta {
+  color: var(--text-muted, #a3a3a3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pet-detail {
+  font-family: var(--mono, monospace);
+  font-size: 11px;
+}
+
+.pet-attention {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(251, 146, 60, 0.18);
+  border: 1px solid rgba(251, 146, 60, 0.5);
+  color: inherit;
+  text-align: left;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.pet-controls {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.pet-controls button,
+.pet-expand {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  border: 0;
+  cursor: pointer;
+}
+
+.pet-expand {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: rgba(28, 28, 28, 0.92);
+}
+
+.pet-body {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: grab;
+  touch-action: none;
+  line-height: 0;
+  border-radius: 20px;
+}
+
+.pet-body:active {
+  cursor: grabbing;
+}
+
+/* sprite parts */
+.pet-shadow {
+  fill: rgba(0, 0, 0, 0.35);
+}
+.pet-line {
+  stroke: #9ca3af;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.pet-light {
+  fill: var(--pet-light);
+}
+.pet-shell.is-outline,
+.pet-foot,
+.pet-hand {
+  stroke-width: 2.5;
+}
+.pet-shell.is-outline {
+  stroke-dasharray: 6 5;
+}
+.pet-face {
+  fill: #151515;
+}
+.pet-eyes ellipse {
+  fill: #f2f2f2;
+}
+.pet-eyes path {
+  fill: none;
+  stroke: #f2f2f2;
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+.pet-prop circle,
+.pet-laptop rect {
+  fill: #2b2b2b;
+  stroke: #9ca3af;
+  stroke-width: 1.5;
+}
+.pet-prop text {
+  fill: #f2f2f2;
+  font: 700 12px var(--mono, monospace);
+}
+.pet-badge.is-attention circle {
+  fill: #c2410c;
+  stroke: #fdba74;
+}
+.pet-badge.is-problem circle {
+  fill: #7f1d1d;
+  stroke: #fca5a5;
+}
+.pet-badge.is-wait circle {
+  fill: #1e3a8a;
+  stroke: #93c5fd;
+}
+.pet-sparkle path {
+  fill: #fde047;
+}
+
+/* status light by tone */
+.pet.tone-working {
+  --pet-light: #fbbf24;
+}
+.pet.tone-attention {
+  --pet-light: #fb923c;
+}
+.pet.tone-problem {
+  --pet-light: #ef4444;
+}
+.pet.tone-wait {
+  --pet-light: #93c5fd;
+}
+.pet.tone-done {
+  --pet-light: #22c55e;
+}
+
+.pet.pres-offline .pet-sprite,
+.pet.pres-unknown .pet-sprite {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+
+/* poses */
+.pet-figure {
+  transform-origin: 60px 100px;
+  transform-box: view-box;
+}
+
+.pet.pres-idle .pet-figure {
+  animation: pet-breathe 4s ease-in-out infinite;
+}
+.pet.pres-thinking .pet-figure {
+  animation: pet-sway 3s ease-in-out infinite;
+}
+.pet.pres-thinking .pet-thought circle {
+  animation: pet-blink 1.6s ease-in-out infinite;
+}
+.pet.pres-coding .pet-hand,
+.pet.pres-command .pet-hand,
+.pet.pres-tool .pet-hand {
+  animation: pet-type 0.45s ease-in-out infinite alternate;
+}
+.pet.pres-reading .pet-figure,
+.pet.pres-browsing .pet-figure {
+  animation: pet-sway 4s ease-in-out infinite;
+}
+.pet.pres-waiting-approval .pet-hand-right {
+  transform: translateY(-22px);
+  transform-box: view-box;
+}
+.pet.pres-waiting-approval .pet-badge {
+  animation: pet-blink 1.2s ease-in-out infinite;
+}
+.pet.pres-queued .pet-figure {
+  animation: pet-hop 2.4s ease-in-out infinite;
+}
+.pet.pres-stalled .pet-eyes {
+  animation: pet-slow-blink 3s ease-in-out infinite;
+}
+.pet.pres-done .pet-figure {
+  animation: pet-celebrate 0.9s ease-out 2;
+}
+.pet.pres-failed .pet-figure {
+  transform: rotate(-6deg);
+}
+
+@keyframes pet-breathe {
+  50% {
+    transform: scaleY(0.97);
+  }
+}
+@keyframes pet-sway {
+  25% {
+    transform: rotate(-3deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+@keyframes pet-type {
+  to {
+    transform: translateY(3px);
+  }
+}
+@keyframes pet-hop {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  90% {
+    transform: translateY(-4px);
+  }
+}
+@keyframes pet-celebrate {
+  30% {
+    transform: translateY(-14px) scale(1.05);
+  }
+  60% {
+    transform: translateY(0) scale(0.98);
+  }
+}
+@keyframes pet-blink {
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes pet-slow-blink {
+  0%,
+  90%,
+  100% {
+    opacity: 1;
+  }
+  95% {
+    opacity: 0.1;
+  }
+}
+
+.pet.is-still *,
+.pet.is-still {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pet *,
+  .pet {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ---------- desktop overlay window (#/pet) ---------- */
+
+html.is-pet-window,
+html.is-pet-window body,
+html.is-pet-window #root {
+  background: transparent !important;
+  overflow: hidden;
+}
+
+.pet-window {
+  height: 100vh;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 4px;
+  user-select: none;
+}

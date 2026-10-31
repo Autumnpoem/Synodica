@@ -1,0 +1,28 @@
+name: Desktop packages
+on:
+  workflow_dispatch:
+jobs:
+  desktop:
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run pet:install
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run test:client
+      - run: npm run build
+      - run: npx electron-builder --config electron-builder.cjs --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Synodica-${{ matrix.os }}
+          path: |
+            release/*.zip
+            release/*.dmg

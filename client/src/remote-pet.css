@@ -1,0 +1,4 @@
+.is-remote-pet-window,.is-remote-pet-window body,.is-remote-pet-window #root{background:transparent!important;overflow:hidden}
+.remote-pet-shell{position:fixed;inset:0;background:transparent;color:#26352e}
+.remote-pet-close{position:fixed;top:5px;right:5px;z-index:2147483647;width:24px;height:24px;border-radius:50%;background:#fff9;color:#233;border:1px solid #99ada2;font:20px/20px system-ui,sans-serif}
+.remote-pet-error{position:fixed;bottom:8px;left:8px;max-width:80%;padding:6px 9px;background:#fff9;border-radius:6px;font:12px system-ui,sans-serif}

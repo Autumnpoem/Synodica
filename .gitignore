@@ -1,0 +1,26 @@
+node_modules/
+dist/
+data/
+team.json
+.env
+*.log
+playground/
+demo-team.json
+demo-data/
+demo-workspace/
+# The upstream pet package is installed (and verified) by `npm run pet:install`, never committed.
+pet-runtime/node_modules/
+pet-runtime/package-lock.json
+
+# Local distribution output.
+release/
+
+# Local generation provenance and machine-specific review handoffs.
+output/
+CC_REVIEW.md
+COMPLETION.md
+IMPLEMENTATION.md
+V2_IMPLEMENTATION.md
+V2_PLAN.md
+V3_IMPLEMENTATION.md
+.DS_Store

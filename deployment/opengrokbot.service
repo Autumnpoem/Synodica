@@ -1,0 +1,29 @@
+[Unit]
+Description=Synodica shared office
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=opengrokbot
+Group=opengrokbot
+WorkingDirectory=/opt/opengrokbot
+EnvironmentFile=/etc/opengrokbot/office.env
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=4310
+Environment=HOME=/home/opengrokbot
+Environment=OPENGROKBOT_TEAM=/var/lib/opengrokbot/config/team.json
+Environment=OPENGROKBOT_DATA=/var/lib/opengrokbot/data
+Environment=OPENGROKBOT_TRUST_PROXY=1
+Environment=PATH=/home/opengrokbot/.local/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=/usr/bin/env node /opt/opengrokbot/dist/server/index.js
+Restart=on-failure
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=30
+UMask=0077
+StateDirectory=opengrokbot
+
+[Install]
+WantedBy=multi-user.target

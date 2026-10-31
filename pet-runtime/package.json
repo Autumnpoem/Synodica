@@ -1,0 +1,9 @@
+{
+  "name": "opengrokbot-pet-runtime",
+  "private": true,
+  "description": "Pinned install of the upstream dsh-pet package (MIT, Copyright 2026 PC2005-cloud), used unmodified by OpenGrokBot. Install with `npm run pet:install` from the app folder; it verifies the registry integrity.",
+  "license": "MIT",
+  "dependencies": {
+    "dsh-pet": "0.3.8"
+  }
+}

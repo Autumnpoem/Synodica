@@ -1,0 +1,7 @@
+# Replace the example domain, then validate with `caddy validate --config Caddyfile`.
+office.example.com {
+    reverse_proxy 127.0.0.1:4310 {
+        # Deliver server-sent events immediately.
+        flush_interval -1
+    }
+}

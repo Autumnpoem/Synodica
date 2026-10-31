@@ -1,0 +1,469 @@
+/* ---------- office: one desk per employee ---------- */
+
+.office-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  margin: 0 12px 8px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.office-link:hover {
+  background: var(--bg-hover);
+}
+
+.office-link.is-active {
+  background: var(--bg-active);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.office-link-title {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.office-link-line {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.office {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.office-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 62px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.office-header h1 {
+  margin: 0 auto 0 0;
+  font-size: 18px;
+}
+
+.office-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.office-filter select,
+.pet-settings select {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font: inherit;
+  max-width: 100%;
+}
+
+.office-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 120px;
+}
+
+.office-banner {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(251, 146, 60, 0.12);
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  font-size: 13px;
+}
+
+.office-summary {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.desk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+}
+
+.desk {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--text-faint);
+  font-size: 13px;
+}
+
+.desk.tone-working {
+  border-left-color: #fbbf24;
+}
+.desk.tone-attention {
+  border-left-color: #fb923c;
+}
+.desk.tone-problem {
+  border-left-color: var(--danger);
+}
+.desk.tone-wait {
+  border-left-color: #93c5fd;
+}
+.desk.tone-done {
+  border-left-color: #22c55e;
+}
+.desk.tone-unknown {
+  border-left-style: dashed;
+}
+
+.desk-top {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.desk-avatar {
+  flex-shrink: 0;
+  display: inline-flex;
+}
+
+.desk.tone-working .desk-avatar {
+  animation: desk-bob 1.6s ease-in-out infinite;
+}
+
+.desk.tone-unknown .desk-avatar,
+.desk.pres-offline .desk-avatar {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.desk.pres-done .desk-avatar {
+  animation: desk-pop 0.9s ease-out 1;
+}
+
+@keyframes desk-bob {
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+@keyframes desk-pop {
+  40% {
+    transform: scale(1.15);
+  }
+}
+
+.desk-id {
+  min-width: 0;
+}
+
+.desk-name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.desk-role,
+.desk-model {
+  color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.desk-state {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-weight: 600;
+}
+
+.desk-glyph {
+  display: inline-block;
+  min-width: 1.4em;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 0 4px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.desk-elapsed {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.desk-task {
+  text-align: left;
+  color: var(--accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-task:hover {
+  text-decoration: underline;
+}
+
+.desk-detail {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.desk-approval {
+  align-self: flex-start;
+}
+
+.desk-meta,
+.desk-provider,
+.desk-today {
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.desk-provider.is-down {
+  color: var(--danger);
+}
+
+.desk-provider.is-ok {
+  color: var(--text-muted);
+}
+
+.timeline {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+
+.timeline-seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.seg-working {
+  background: #fbbf24;
+}
+.seg-waiting {
+  background: #93c5fd;
+}
+.seg-idle {
+  background: #4b5563;
+}
+.seg-problem {
+  background: var(--danger);
+}
+.seg-gap,
+.seg-earlier {
+  background: repeating-linear-gradient(45deg, transparent 0 3px, rgba(255, 255, 255, 0.12) 3px 6px);
+}
+
+.office-companion {
+  margin-top: 24px;
+}
+
+.office-companion h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.pet-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.pet-settings fieldset {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  font-size: 13px;
+  min-width: 0;
+}
+
+.pet-settings legend {
+  font-weight: 700;
+  padding: 0 4px;
+}
+
+.pet-settings .check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.pet-settings input[type='range'] {
+  width: 100%;
+  max-width: 260px;
+}
+
+.pet-settings .hint {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.pet-settings .hint.bad {
+  color: var(--danger);
+}
+
+.office-note {
+  margin-top: 18px;
+  font-size: 12px;
+  color: var(--text-faint);
+  max-width: 760px;
+}
+
+.office :focus-visible,
+.pet :focus-visible,
+.office-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk .desk-avatar {
+    animation: none !important;
+  }
+}
+
+/* ---------- narrow windows ---------- */
+
+.nav-toggle,
+.nav-scrim {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  .app {
+    grid-template-columns: 290px 1fr;
+  }
+
+  .info-panel,
+  .info-panel.is-project {
+    width: min(340px, 42vw);
+  }
+}
+
+@media (max-width: 820px) {
+  .app,
+  .app:has(> .profile) {
+    grid-template-columns: 1fr;
+  }
+
+  /* The sidebar becomes a drawer instead of squeezing the conversation. */
+  .app > .sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: min(320px, 86vw);
+    z-index: 60;
+    transform: translateX(-102%);
+    transition: transform 0.18s ease;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+  }
+
+  .app.is-nav-open > .sidebar {
+    transform: none;
+  }
+
+  .nav-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.45);
+  }
+
+  .nav-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 13px;
+    left: 10px;
+    z-index: 20;
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    font-size: 18px;
+  }
+
+  .chat-header,
+  .office-header {
+    padding-left: 56px;
+  }
+
+  /* The members / board panel overlays the chat instead of shrinking it to nothing. */
+  .chat-body {
+    position: relative;
+  }
+
+  .info-panel,
+  .info-panel.is-project {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(400px, 92vw);
+    z-index: 15;
+    background: var(--bg-main);
+    box-shadow: -12px 0 30px rgba(0, 0, 0, 0.4);
+  }
+
+  .app > .profile {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(400px, 100vw);
+    z-index: 50;
+    box-shadow: -12px 0 30px rgba(0, 0, 0, 0.45);
+  }
+
+  .office-scroll {
+    padding: 12px 12px 120px;
+  }
+
+  .desk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) and (prefers-reduced-motion: reduce) {
+  .app > .sidebar {
+    transition: none;
+  }
+}

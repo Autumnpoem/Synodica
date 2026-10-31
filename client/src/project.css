@@ -1,0 +1,559 @@
+/* ---------- projects: board, tasks, activity ---------- */
+
+.info-panel.is-project {
+  width: 400px;
+  padding-top: 12px;
+}
+
+.panel-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  background: var(--bg-elevated);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.panel-tabs button {
+  flex: 1;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.panel-tabs button.is-active {
+  background: var(--bg-active);
+  color: var(--text);
+}
+
+.info-activity {
+  display: block;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
+.info-activity.act-thinking,
+.info-activity.act-tool {
+  color: #fbbf24;
+}
+.info-activity.act-waiting-approval,
+.info-activity.act-waiting-user,
+.info-activity.act-interrupted {
+  color: #fb923c;
+}
+.info-activity.act-error,
+.info-activity.act-offline {
+  color: var(--danger);
+}
+.info-activity.act-queued,
+.info-activity.act-waiting-dependency {
+  color: #93c5fd;
+}
+.info-activity.act-done {
+  color: #22c55e;
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.board-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.board-title {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.phase {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-active);
+  color: var(--text-muted);
+}
+
+.phase-planning,
+.phase-executing,
+.phase-final-review {
+  background: rgba(251, 191, 36, 0.15);
+  color: #fbbf24;
+}
+.phase-plan-ready {
+  background: rgba(59, 130, 246, 0.18);
+  color: #93c5fd;
+}
+.phase-done {
+  background: rgba(34, 197, 94, 0.16);
+  color: #4ade80;
+}
+.phase-needs-attention {
+  background: rgba(255, 92, 92, 0.16);
+  color: var(--danger);
+}
+
+.badge-phase {
+  text-transform: none;
+}
+
+.board-ws {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  word-break: break-all;
+}
+
+.board-roles {
+  display: flex;
+  gap: 8px;
+}
+
+.board-roles label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.board-roles select,
+.task-form select,
+.task-form input,
+.task-form textarea,
+.kickoff textarea,
+.task-reason-form input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 12.5px;
+}
+
+.board-reason,
+.task-reason {
+  border-left: 3px solid var(--danger);
+  background: rgba(255, 92, 92, 0.08);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+}
+
+.board-running {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fbbf24;
+  font-size: 12.5px;
+}
+
+.board-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kickoff {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+}
+
+.kickoff button {
+  align-self: flex-end;
+}
+
+.board-section h3 {
+  margin: 6px 0;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.board-toggle {
+  text-align: left;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.board-plan p,
+.decision {
+  margin: 4px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+/* The owner's corrections on the board: newest first, with a truthful status. */
+.correction-item {
+  margin: 4px 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.correction-item.is-stopping .muted,
+.correction-item.is-pending-restart .muted {
+  color: #f59e0b;
+}
+
+/* Plan discussion is compact by default; prior plan rounds stay behind a native disclosure. */
+.discussion-panel { min-width: 0; }
+.discussion-round-heading,
+.discussion-objection-head,
+.discussion-resolve-actions { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.discussion-round-heading { justify-content: space-between; padding: 7px 9px; border-radius: 10px; background: var(--soft-fill, #f0f1f4); }
+.discussion-round-content { display: grid; gap: 10px; padding: 8px 0; }
+.discussion-participants { display: flex; gap: 6px; flex-wrap: wrap; }
+.discussion-participant { min-width: 120px; max-width: 100%; padding: 7px 9px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-elevated); }
+.discussion-participant > strong { margin-right: 6px; }
+.discussion-participant p,
+.discussion-participant blockquote { margin: 4px 0 0; font-size: 12px; overflow-wrap: anywhere; }
+.discussion-participant blockquote { padding-left: 8px; border-left: 2px solid var(--border); color: var(--text-muted); }
+.discussion-status,
+.discussion-severity { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 999px; background: var(--soft-fill, #f0f1f4); color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+.discussion-status.is-needs-user,
+.discussion-status.is-failed,
+.discussion-status.is-invalid { background: #fff0e6; color: #8a4310; }
+.discussion-status.is-objected,
+.discussion-severity.is-blocking { background: #fff1e6; color: #8a4310; }
+.discussion-status.is-accepted { background: #eaf5ed; color: var(--success, #23734a); }
+.discussion-status.is-rejected { background: #fff0f0; color: var(--danger); }
+.discussion-severity.is-advisory { background: #eaf1fc; color: var(--accent); }
+.discussion-objections h4 { margin: 2px 0 6px; font-size: 12px; }
+.discussion-objection { min-width: 0; margin: 6px 0; padding: 10px; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-elevated); overflow-wrap: anywhere; }
+.discussion-objection > p { margin: 6px 0; line-height: 1.5; }
+.discussion-claim { font-weight: 600; }
+.discussion-citations { display: flex; gap: 5px; flex-wrap: wrap; font-size: 12px; }
+.discussion-citations span { padding: 2px 6px; border-radius: 6px; background: var(--soft-fill, #f0f1f4); }
+.discussion-disposition { color: var(--text-muted); }
+.discussion-resolve { margin-top: 9px; padding-top: 9px; border-top: 1px solid var(--border); }
+.discussion-resolve label { display: grid; gap: 5px; font-size: 12px; color: var(--text-muted); }
+.discussion-resolve textarea { width: 100%; min-width: 0; resize: vertical; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-main); color: var(--text); font: inherit; }
+.discussion-earlier { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 8px; }
+.discussion-earlier summary { cursor: pointer; font-weight: 600; color: var(--text-muted); }
+.discussion-old-round { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+@media (max-width: 520px) {
+  .discussion-participant { min-width: 0; flex: 1 1 100%; }
+  .discussion-objection-head .muted { flex-basis: 100%; }
+  .discussion-resolve-actions .btn { flex: 1 1 auto; }
+}
+
+.board-tasks-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.task-group-title {
+  font-size: 11px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 10px 0 4px;
+}
+
+.task {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.task-cancelled {
+  opacity: 0.55;
+}
+
+.task-top {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  text-align: left;
+  width: 100%;
+}
+
+.task-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.task-title {
+  flex: 1;
+  font-weight: 600;
+}
+
+.task-state {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: var(--bg-active);
+  color: var(--text-muted);
+}
+
+.state-ready {
+  color: #93c5fd;
+}
+.state-running,
+.state-reviewing {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.14);
+}
+.state-implemented {
+  color: #5eead4;
+}
+.state-rework {
+  color: #fb923c;
+}
+.state-accepted {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.14);
+}
+.state-failed,
+.state-blocked {
+  color: var(--danger);
+  background: rgba(255, 92, 92, 0.14);
+}
+.state-interrupted,
+.state-paused {
+  color: #fb923c;
+  background: rgba(251, 146, 60, 0.14);
+}
+
+.task-people {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.task-person {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-body {
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.task-body ul {
+  margin: 2px 0 6px;
+  padding-left: 18px;
+}
+
+.task-body p {
+  margin: 2px 0 6px;
+}
+
+.task-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  margin-top: 6px;
+}
+
+.task-body .mono,
+.mono {
+  font-family: var(--mono);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.review {
+  border-left: 3px solid var(--border);
+  padding: 2px 8px;
+  margin: 4px 0;
+}
+
+.review-approve {
+  border-left-color: #4ade80;
+}
+
+.review-reject {
+  border-left-color: var(--danger);
+}
+
+.task-history {
+  list-style: none;
+  padding-left: 0 !important;
+  color: var(--text-muted);
+}
+
+.task-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.link.danger {
+  color: var(--danger);
+}
+
+.task-form,
+.task-reason-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.task-reason-form {
+  flex-direction: row;
+  align-items: center;
+}
+
+.task-reason-form input {
+  flex: 1;
+}
+
+.task-form-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.task-form-row label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.task-deps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.task-ref {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  background: var(--bg-active);
+  border-radius: 6px;
+  padding: 0 6px;
+  margin-bottom: 4px;
+}
+
+.bubble.is-workflow {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  font-size: 13px;
+  white-space: pre-wrap;
+}
+
+/* A reply that arrived after Stop or a correction: kept for the record, visibly not an answer. */
+.bubble.is-superseded {
+  background: transparent;
+  border: 1px dashed var(--border);
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.superseded-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.sidebar-top .new-project {
+  margin-left: auto;
+  font-size: 12.5px;
+  padding: 5px 12px;
+}
+
+.sheet.sheet-wide {
+  width: min(760px, 100%);
+}
+
+.hint-box {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 13px;
+}
+
+.seat {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.seat.is-skipped {
+  opacity: 0.5;
+}
+
+.seat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.seat-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.seat-skip {
+  margin-left: auto;
+}
+
+.seat-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.seat-row select,
+.seat-row input {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 6px 8px;
+  font: inherit;
+  font-size: 13px;
+}
+
+.ok {
+  color: #4ade80;
+}
+
+.bad {
+  color: var(--danger);
+}
