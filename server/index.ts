@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url'
 import { Account } from './account.js'
 import { AvatarError, AvatarStore } from './avatars.js'
 import { CorrectionLog, Corrector } from './correction.js'
-import { PetBridge, PetSettingsStore } from './petbridge.js'
+import { PetBridge, PetSettingsStore, balanceFromUsage } from './petbridge.js'
 import { browserRoute, PET_PACKAGE, PET_ROUTE, PetRuntime, sameOriginWrite, type HelperLaunch } from './petruntime.js'
 import { FAILED_MESSAGE, READY_MESSAGE } from './desktopdata.js'
 import { lowNotice, UsageMeter } from './usagemeter.js'
@@ -31,6 +31,7 @@ import { allowedRealFile as realFileInRoots, canonicalPath, isInside } from './p
 import { checkWorkspace, parseCommand, suggestWorkspace, writeProjectFiles } from './projectio.js'
 import { ProjectStore } from './projects.js'
 import { providerStatuses } from './providers/index.js'
+import { providerModels } from './provider-models.js'
 import { Routines } from './routines.js'
 import { Store } from './store.js'
 import { applyTemplate, loadTeam, parseAgent, parseMcpServer, parseSkill, parseTeam, saveTeam, TeamError } from './team.js'
@@ -104,6 +105,7 @@ const workspaceRules = { appRoot: root, denied: [dataDir, path.dirname(teamFile)
 const orchestrator = new Orchestrator(() => team, store, account, approvals, memory, (p) => allowedFile(p), {
   activity,
   locks,
+  resolveAttachment: (p) => allowedRealFile(p),
   projectFor: (conversationId) => {
     const p = projects.byConversation(conversationId)
     return p && !p.archived ? { id: p.id, workspace: p.workspace, context: projectContext(p, names) } : undefined
@@ -195,7 +197,17 @@ const usage = new UsageMeter({
 usagePetSummary = usage.getSettings().petSummary
 usage.start()
 
-const pet = new PetRuntime({ appRoot: root, dataDir, ...(process.env.OPENGROKBOT_PET_PACKAGE_DIR ? { packageDir: process.env.OPENGROKBOT_PET_PACKAGE_DIR } : {}), ...(ourElectron() ? { electronPath: ourElectron() as string } : {}) })
+const petHelper: HelperLaunch | undefined = process.env.OPENGROKBOT_PET_HELPER_MODE === 'app-executable'
+  ? { mode: 'app-executable' }
+  : process.env.OPENGROKBOT_PET_HELPER_MODE === 'launcher'
+    ? { mode: 'launcher', appEntry: path.join(root, 'desktop', 'main.cjs') }
+    : undefined
+const pet = new PetRuntime({ appRoot: root, dataDir,
+  ...(petHelper ? { helper: petHelper } : {}),
+  balance: () => balanceFromUsage(usage.report(), petSettings.get().follow),
+  ...(process.env.OPENGROKBOT_PET_PACKAGE_DIR ? { packageDir: process.env.OPENGROKBOT_PET_PACKAGE_DIR } : {}),
+  ...(ourElectron() ? { electronPath: ourElectron() as string } : {}),
+})
 const petBridge = new PetBridge({
   runtime: pet,
   snapshot: () => activitySnapshot(team, projects.list(), approvals.list(), activity),
@@ -286,14 +298,14 @@ app.use(idempotency.middleware())
 let desktopPetActive = true
 
 app.get('/api/pet/status', (_req, res) => {
-  res.json({ status: pet.status(), settings: petSettings.get(), package: PET_PACKAGE })
+  res.json({ status: pet.status(), settings: petSettings.get(), package: PET_PACKAGE, balanceAccount: balanceFromUsage(usage.report(), petSettings.get().follow).provider })
 })
 
 app.post('/api/pet/start', async (_req, res) => {
   petSettings.update({ enabled: true })
   const status = desktopPetActive ? await pet.start() : pet.status()
   if (status.state === 'running') void petBridge.sync().catch(() => {})
-  res.json({ status, settings: petSettings.get() })
+  res.json({ status, settings: petSettings.get(), balanceAccount: balanceFromUsage(usage.report(), petSettings.get().follow).provider })
 })
 
 app.post('/api/pet/stop', async (_req, res) => {
@@ -301,7 +313,7 @@ app.post('/api/pet/stop', async (_req, res) => {
   const status = await pet.stop()
   // Whatever was published belonged to the stopped host; the next host gets the full current state.
   petBridge.invalidate()
-  res.json({ status, settings: petSettings.get() })
+  res.json({ status, settings: petSettings.get(), balanceAccount: balanceFromUsage(usage.report(), petSettings.get().follow).provider })
 })
 
 app.post('/api/pet/desktop', async (req, res) => {
@@ -311,7 +323,7 @@ app.post('/api/pet/desktop', async (req, res) => {
   const status = desktopPetActive && petSettings.get().enabled ? await pet.start() : await pet.stop()
   if (status.state === 'running') void petBridge.sync().catch(() => {})
   else petBridge.invalidate()
-  res.json({ status, settings: petSettings.get() })
+  res.json({ status, settings: petSettings.get(), balanceAccount: balanceFromUsage(usage.report(), petSettings.get().follow).provider })
 })
 
 app.put('/api/pet/settings', (req, res) => {
@@ -1083,6 +1095,22 @@ app.get('/api/providers/status', async (req, res) => {
     res.json({ statuses })
   } catch (err) {
     res.status(500).json({ error: err instanceof Error ? err.message : String(err) })
+  }
+})
+
+// Fetch the selected provider's model catalog only when requested by the model picker.
+app.get('/api/providers/:id/models', async (req, res) => {
+  const id = String(req.params.id)
+  const provider = team.providers[id]
+  res.setHeader('Cache-Control', 'no-store')
+  if (!provider) {
+    res.status(404).json({ error: 'unknown provider' })
+    return
+  }
+  try {
+    res.json(await providerModels(id, provider, req.query.force === '1'))
+  } catch {
+    res.status(502).json({ error: 'model catalog unavailable' })
   }
 })
 

@@ -3,6 +3,8 @@ import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, 
 import http, { type IncomingMessage, type ServerResponse } from 'node:http'
 import net from 'node:net'
 import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import type { PetBalanceResult } from './petbridge.js'
 
 /**
  * The confirmed upstream pet: dsh-pet by PC2005-cloud (MIT). It is installed unmodified from the
@@ -141,12 +143,13 @@ const BROWSER_EXACT: Record<string, Methods> = {
   pose: ['GET'],
   'pose/report': ['POST'],
   'menu/click': ['POST'],
+  balance: ['POST'],
 }
 const BROWSER_PREFIX: Record<string, Methods> = { thumb: ['GET', 'HEAD'], font: ['GET', 'HEAD'], pic: ['GET', 'HEAD'], playback: ['GET', 'POST'] }
 /** Written only by Synodica's bridge on the server (real activity, our menu items). */
 export const HOST_ONLY = new Set(['work-status', 'broadcast', 'menu/item', 'menu/events'])
 /** Need DSH host services Synodica does not provide to the pet: answered truthfully as not configured. */
-export const NOT_PROVIDED = new Set(['balance', 'whisper', 'chat'])
+export const NOT_PROVIDED = new Set(['whisper', 'chat'])
 
 export type RouteDecision = { ok: true; rest: string; search: string } | { ok: false; status: number; body: Record<string, unknown> }
 
@@ -181,7 +184,7 @@ export function browserRoute(method: string, rawUrl: string): RouteDecision {
   }
   const rest = decoded.join('/')
   if (HOST_ONLY.has(rest)) return { ok: false, status: 403, body: { error: 'this pet route is written by Synodica from real team activity only' } }
-  if (NOT_PROVIDED.has(rest)) return { ok: false, status: 200, body: { ok: false, reason: 'not-configured', message: 'Synodica does not provide balance, chatter, pet chat or notification services to the pet. It stays off; no model is called.' } }
+  if (NOT_PROVIDED.has(rest)) return { ok: false, status: 200, body: { ok: false, reason: 'not-configured', message: 'Synodica does not provide pet chatter or chat. No model is called.' } }
   const exact = BROWSER_EXACT[rest]
   const allowed = exact ?? (decoded.length > 1 ? BROWSER_PREFIX[decoded[0] as string] : undefined)
   if (!allowed) return { ok: false, status: 404, body: { error: 'unknown pet route' } }
@@ -230,6 +233,8 @@ export interface PetRuntimeOptions {
   electronPath?: string
   /** How that Electron runs Synodica's entry for the helper (profile isolation). */
   helper?: HelperLaunch
+  /** A read-only projection of an existing UsageMeter snapshot; never refreshes providers. */
+  balance?: () => PetBalanceResult
   /** Base environment (tests pass a minimal one). Only an allowlist of it reaches the child. */
   env?: NodeJS.ProcessEnv
   /** How long to wait for the child to publish its port and capability. */
@@ -276,9 +281,9 @@ export function petEnv(base: NodeJS.ProcessEnv, home: string, electronPath: stri
   env.DSH_PET_ELECTRON_MIRROR = NO_DOWNLOAD_MIRROR
   // Bounded restarts so a broken display cannot loop forever.
   env.DSH_PET_RESTART_MAX_FAILURES = '3'
+  if (opts.packageDir) env.OPENGROKBOT_PET_PACKAGE_ROOT = path.resolve(opts.packageDir)
   if (electronPath && existsSync(electronPath)) {
     env.OPENGROKBOT_PET_HELPER_PROFILE = helperProfileDir(home, platform)
-    if (opts.packageDir) env.OPENGROKBOT_PET_PACKAGE_ROOT = path.resolve(opts.packageDir)
     if (opts.helper?.mode === 'launcher' && platform !== 'win32') {
       env.DSH_PET_ELECTRON_PATH = helperLauncherPath(home)
       env.OPENGROKBOT_PET_REAL_ELECTRON = electronPath
@@ -427,13 +432,24 @@ export class PetRuntime {
     const env = petEnv(this.opts.env ?? process.env, this.home, this.opts.electronPath, this.envOptions())
     mkdirSync(env.HOME as string, { recursive: true })
     if (env.OPENGROKBOT_PET_REAL_ELECTRON) this.writeLauncher()
-    const child = spawn(process.execPath, [path.join(pkg, 'lib', 'standalone.js'), '--port', String(port)], {
+    const ownEntry = fileURLToPath(import.meta.url)
+    const hostEntry = path.join(path.dirname(ownEntry), ownEntry.endsWith('.ts') ? 'pethost.ts' : 'pethost.js')
+    const args = this.opts.balance ? [...(ownEntry.endsWith('.ts') ? ['--import', fileURLToPath(import.meta.resolve('tsx'))] : []), hostEntry, '--port', String(port)] : [path.join(pkg, 'lib', 'standalone.js'), '--port', String(port)]
+    const child = spawn(process.execPath, args, {
       cwd: this.home,
       env,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: ['ignore', 'pipe', 'pipe', ...(this.opts.balance ? ['ipc'] as const : [])],
       windowsHide: true,
     })
     this.child = child
+    if (this.opts.balance) child.on('message', (message: unknown) => {
+      const req = message as { type?: unknown; id?: unknown } | null
+      if (req?.type !== 'pet:balance' || typeof req.id !== 'number' || !Number.isSafeInteger(req.id)) return
+      let result: PetBalanceResult
+      try { result = this.opts.balance!() }
+      catch { result = { ok: false, provider: 'Synodica', reason: 'fetch-error', message: 'The local usage snapshot is unavailable.' } }
+      child.send({ type: 'pet:balance:reply', id: req.id, result })
+    })
     let tail = ''
     const keep = (chunk: Buffer) => {
       const text = chunk.toString('utf8')

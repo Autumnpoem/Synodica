@@ -36,6 +36,17 @@ export interface ProviderDef {
   echoReasoning?: boolean
 }
 
+/** A model picker snapshot. CLI/upstream rows describe the queried catalog, not account entitlement. */
+export interface ProviderModelCatalog {
+  provider: string
+  models: { id: string; label: string; description?: string; inputModalities?: string[] }[]
+  source: 'upstream' | 'cli' | 'configured' | 'unavailable'
+  /** `default` delegates model choice to the CLI; it is not a stable model ID. */
+  supportsDefault: boolean
+  updatedAt: number
+  error?: 'missing-credential' | 'unavailable' | 'unsupported'
+}
+
 /** Which part of the development workflow an employee can fill. Drives defaults, never permissions. */
 export type WorkflowRole = 'lead' | 'critic' | 'implementer' | 'reviewer' | 'tester' | 'writer'
 

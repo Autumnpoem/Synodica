@@ -2,7 +2,8 @@
 // Installs the pinned upstream pet package (dsh-pet 0.3.8, MIT, PC2005-cloud) into pet-runtime/
 // from the npm registry and verifies it: registry integrity in the lockfile, version, license,
 // the original runtime files and the packaged animations. Install scripts are disabled and peer
-// packages (the DeepSeek Harness) are not installed. Nothing from the package is copied into the
+// packages are not auto-installed. Only the four explicitly pinned host libraries
+// needed by the public balance extension are installed; no DSH CLI is installed. Nothing from the package is copied into the
 // repository; pet-runtime/node_modules and its lockfile stay out of Git.
 //
 //   npm run pet:install            install (or repair) and verify
@@ -17,6 +18,13 @@ const PINNED = {
   version: '0.3.8',
   integrity: 'sha512-E1ymE0/a1k2MJco2JDcWeqwMttjWNZWt5yMEN+jjKwWD+H2XT5OMUDmazMLhNnN5grmL9+lbE94iyEQMn5p+JA==',
   tarball: 'https://registry.npmjs.org/dsh-pet/-/dsh-pet-0.3.8.tgz',
+}
+
+const HOST_LIBRARIES = {
+  '@deepseek-ai/cordis': '4.0.4',
+  '@deepseek-ai/dsh-home-paths': '0.2.0-rc.1',
+  '@deepseek-ai/dsh-credentials': '0.2.0-rc.1',
+  '@deepseek-ai/dsh-llm': '0.2.0-rc.1',
 }
 
 const appRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
@@ -51,6 +59,14 @@ if (manifest.name !== PINNED.name || manifest.version !== PINNED.version) fail(`
 if (manifest.license !== 'MIT') fail('the installed package is not the MIT-licensed release.')
 for (const rel of ['LICENSE', 'lib/standalone.js', 'lib/client.js', 'lib/index.js', 'assets/config.jsonc', 'runtime/electron-helper/main.js']) {
   if (!existsSync(path.join(pkgDir, rel))) fail(`${rel} is missing from the installed package; run \`npm run pet:install\` again.`)
+}
+// The plugin's public apply(ctx) entry imports these runtime interfaces. The host supplies
+// no credential or model service; they only let the unmodified plugin load its balance hook.
+for (const [name, version] of Object.entries(HOST_LIBRARIES)) {
+  const file = path.join(dir, 'node_modules', name, 'package.json')
+  if (!existsSync(file)) fail(`${name} is missing; run npm run pet:install.`)
+  const installed = JSON.parse(readFileSync(file, 'utf8'))
+  if (installed.version !== version) fail(`${name} is not the pinned ${version}.`)
 }
 const webm = readdirSync(path.join(pkgDir, 'assets', 'webm')).filter((f) => f.endsWith('.webm')).length
 if (webm === 0) fail('the packaged animations (assets/webm) are missing.')

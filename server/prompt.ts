@@ -1,4 +1,5 @@
 import type { Agent, Conversation, Team } from '../shared/types.js'
+import { isImageAttachment } from './attachments.js'
 
 export const SKIP_TOKEN = '[skip]'
 
@@ -90,7 +91,7 @@ function lastIndexOfOwnMessage(conversation: Conversation, agentId: string): num
  * Without one: the recent transcript including their own earlier messages, marked "(you)".
  * `note` is an optional dispatcher instruction appended to the turn.
  */
-export function buildTurnPrompt(team: Team, conversation: Conversation, agent: Agent, hasSession: boolean, note?: string): string {
+export function buildTurnPrompt(team: Team, conversation: Conversation, agent: Agent, hasSession: boolean, note?: string, currentInputMessageId?: string): string {
   const names = new Map<string, string>([['user', team.owner.name], ['workflow', 'Workflow']])
   for (const a of team.agents) names.set(a.id, a.name)
   const since = hasSession ? lastIndexOfOwnMessage(conversation, agent.id) : -1
@@ -102,7 +103,11 @@ export function buildTurnPrompt(team: Team, conversation: Conversation, agent: A
   const lines = window.map((m) => {
     const who = m.authorId === 'routine' ? 'Routine' : (names.get(m.authorId) ?? m.authorId)
     const quote = m.replyTo ? `(replying to ${names.get(m.replyTo.authorId) ?? m.replyTo.authorId}: "${m.replyTo.excerpt}") ` : ''
-    const files = m.attachments?.length ? `\n(attached files: ${m.attachments.map((a) => a.path).join(', ')} — read them with your tools)` : ''
+    const files = m.attachments?.length ? `\n(attached files: ${m.attachments.map((a) => {
+      if (!isImageAttachment(a)) return a.path
+      const name = (a.name.replace(/\\/g, '/').split('/').at(-1) || 'image').replace(/[\r\n]/g, ' ')
+      return `${name} (${m.id === currentInputMessageId ? 'image for this turn' : 'earlier image; content not included'})`
+    }).join(', ')} — read non-image files with your tools)` : ''
     return `[${who}${m.authorId === agent.id ? ' (you)' : ''}]: ${quote}${m.text}${files}`
   })
   const head = skipped > 0 ? `(${skipped} earlier messages omitted)\n` : ''

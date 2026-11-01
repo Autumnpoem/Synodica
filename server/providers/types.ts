@@ -28,6 +28,10 @@ export interface RunTurnParams {
   sessionId: string | undefined
   signal: AbortSignal
   handlers: TurnHandlers
+  /** ID of the user message that triggered this turn; image bytes may come only from it. */
+  inputMessageId?: string
+  /** Host-authorized real path for an attached file; undefined rejects the path. */
+  resolveAttachment?: (file: string) => string | undefined
   /** Optional dispatcher instruction appended to this turn (e.g. "build it now"). */
   note?: string
   /** The employee's long-term notes, injected into the system prompt. */

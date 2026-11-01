@@ -474,7 +474,7 @@ const EN_ESCAPED = {
   'settings.workspaceHint': 'Default working directory for employees\\u2019 tools.',
   'settings.rules': 'Conversation rules',
   'settings.groupMode': 'When I post in a group without mentioning anyone',
-  'settings.groupModeHint': 'Smart: a fast dispatcher picks the 1-3 employees whose job it is (a build request goes to one builder). Everyone: all unmuted members reply in order, up to 12 for an explicit team-wide request. Mentions only: just the first member replies and pulls others in.',
+  'settings.groupModeHint': 'Smart: a fast dispatcher picks the 1-3 employees whose job it is (a build request goes to one builder). Everyone: all unmuted members take part in an opening round, up to 12. Replies may run concurrently, but employees with file-writing tools are serialized to protect the shared working folder. A single @Name remains exclusive to that employee. Mentions only: just the first member replies and pulls others in.',
   'settings.planDiscussion': 'Planning discussion',
   'settings.planDiscussionHint': 'Auto turns this on for projects that include members from a built-in team preset. Eligible teammates can raise evidence-backed or clearly labeled hypothetical objections before the plan is decided. This is read-only and does not change provider or model settings.',
   'settings.planDiscussionAuto': 'Auto (preset teams)',

@@ -87,23 +87,27 @@ test('ordinary round stays within configured budget and notes queued mentions', 
   assert.ok(h.store.get('group')!.messages.some((m) => m.authorId === 'workflow' && m.text.includes('PERSON2')))
 })
 
-test('stopping a whole-team round dispatches no later member', async () => {
+test('stopping a whole-team round aborts every in-flight turn and suppresses late replies and followups', async () => {
   let release!: () => void
+  const held = new Promise<void>((resolve) => { release = resolve })
   let started!: () => void
-  const firstStarted = new Promise<void>((resolve) => { started = resolve })
+  const allStarted = new Promise<void>((resolve) => { started = resolve })
+  const signals: AbortSignal[] = []
   const h = setup(5, 3, async (p) => {
     h.calls.push(p.agent.id)
-    if (h.calls.length === 1) {
-      started()
-      await new Promise<void>((resolve) => { release = resolve })
-    }
-    return { text: `reply from ${p.agent.id}` }
+    signals.push(p.signal)
+    p.handlers.onDelta('working')
+    if (h.calls.length === 5) started()
+    await held // ignores cancellation, as a late provider may
+    return { text: '@PERSON1 late reply' }
   })
   h.orchestrator.post('group', '@everyone weigh in')
-  await firstStarted
+  await allStarted
   h.orchestrator.stop('group')
+  assert.ok(signals.every((signal) => signal.aborted))
   release()
   await h.orchestrator.waitForIdle('group')
-  assert.deepEqual(h.calls, ['person1'])
+  assert.deepEqual(h.calls, ['person1', 'person2', 'person3', 'person4', 'person5'])
+  assert.deepEqual(h.store.get('group')!.messages.filter((m) => m.authorId !== 'user').map((m) => m.status), ['superseded', 'superseded', 'superseded', 'superseded', 'superseded'])
   assert.equal(h.store.get('group')!.messages.some((m) => m.authorId === 'workflow' && m.text.includes('Round limit')), false)
 })

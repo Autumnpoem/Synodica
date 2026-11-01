@@ -13,7 +13,7 @@ const root = [path.join(here, '..'), path.join(here, '..', '..')].find((d) => ex
 const helper = createRequire(import.meta.url)(path.join(root, 'desktop', 'pet-helper.cjs')) as {
   HELPER_APP_NAME: string
   detectHelperLaunch: (argv: unknown, env: Record<string, string | undefined>, exists?: (p: string) => boolean) => { main: string; profile: string } | null
-  runHelper: (app: { setPath: (name: string, p: string) => void }, launch: { main: string; profile: string }, load: (p: string) => unknown) => void
+  runHelper: (app: { setPath: (name: string, p: string) => void; getAppPath: () => string; setAppPath: (p: string) => void }, launch: { main: string; profile: string }, load: (p: string) => unknown) => void
 }
 
 test('desktop data: defaults live in per-user app data, never the app folder; explicit overrides are kept', () => {
@@ -119,8 +119,23 @@ test('pet helper entry: only the verified package helper is run, and only after 
   assert.equal(helper.detectHelperLaunch(['electron', main], env, () => false), null)
 
   const order: string[] = []
-  const app = { setPath: (name: string, p: string) => order.push(`${name}=${p}`) }
+  const app = { setPath: (name: string, p: string) => order.push(`${name}=${p}`), getAppPath: () => pkg, setAppPath: (p: string) => order.push(`appPath=${p}`) }
   helper.runHelper(app, { main, profile }, (p) => order.push(`load ${p}`))
   assert.ok(existsSync(profile))
-  assert.deepEqual(order, [`userData=${profile}`, `sessionData=${profile}`, `crashDumps=${path.join(profile, 'Crashpad')}`, `load ${main}`])
+  assert.deepEqual(order, [`userData=${profile}`, `sessionData=${profile}`, `crashDumps=${path.join(profile, 'Crashpad')}`, `appPath=${path.dirname(main)}`, `load ${main}`])
+})
+
+test('packaged helper sets the original pet asset root before loading its unmodified main', () => {
+  const main = path.join(root, 'pet-runtime', 'node_modules', 'dsh-pet', 'runtime', 'electron-helper', 'main.js')
+  const index = path.join(path.dirname(main), 'index.html')
+  assert.ok(existsSync(index), 'the original pet HTML fixture is installed')
+  const packagedAppRoot = tmp('synodica-app-root-')
+  const profile = helperProfileDir(petHomeDir(tmp('ogb-data-')), process.platform)
+  let appPath = packagedAppRoot
+  const app = { setPath: () => {}, getAppPath: () => appPath, setAppPath: (p: string) => { appPath = p } }
+  helper.runHelper(app, { main, profile }, (p) => {
+    assert.equal(p, main)
+    assert.equal(path.join(app.getAppPath(), 'index.html'), index)
+    assert.ok(existsSync(path.join(app.getAppPath(), 'index.html')), 'loadFile(index.html) must find the original asset')
+  })
 })

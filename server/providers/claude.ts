@@ -1,6 +1,8 @@
 import { claudeEnv } from './claude-env.js'
 import { query } from '@anthropic-ai/claude-agent-sdk'
-import type { McpServerConfig, Options } from '@anthropic-ai/claude-agent-sdk'
+import type { McpServerConfig, Options, SDKUserMessage } from '@anthropic-ai/claude-agent-sdk'
+import { imageReply, imageSupport, isImageUnsupportedError, turnImages, type TurnImage } from '../attachments.js'
+import { providerModels } from '../provider-models.js'
 import { needsApproval } from '../approvals.js'
 import { buildSystemPrompt, buildTurnPrompt, stripSkip } from '../prompt.js'
 import { READ_ONLY_TOOLS, turnCwd, type TurnHandlers } from './types.js'
@@ -56,13 +58,28 @@ export interface TurnScope {
   readOnly?: boolean
 }
 
+/** One SDK user message carries the transcript and native image blocks in the same turn. */
+export function claudePromptInput(prompt: string, images: TurnImage[]): string | AsyncIterable<SDKUserMessage> {
+  if (images.length === 0) return prompt
+  return (async function* () {
+    yield {
+      type: 'user' as const,
+      message: { role: 'user' as const, content: [
+        { type: 'text' as const, text: prompt },
+        ...images.map((image) => ({ type: 'image' as const, source: { type: 'base64' as const, media_type: image.mime, data: image.data.toString('base64') } })),
+      ] },
+      parent_tool_use_id: null,
+    }
+  })()
+}
+
 export function buildQueryOptions(team: Team, conversation: Conversation, agent: Agent, provider: ProviderDef, sessionId: string | undefined, abort: AbortController, handlers?: TurnHandlers, notes = '', scope: TurnScope = {}): Options {
   if (scope.readOnly) {
     // Read-only steps: the tool list itself excludes Edit/Write/Bash/NotebookEdit/Task and MCP, and
     // dontAsk denies anything not pre-approved, so no write can be approved even by mistake.
     const tools = agent.tools.filter((t) => READ_ONLY_TOOLS.includes(t))
     return {
-      model: agent.model,
+      ...(agent.model && agent.model !== 'default' ? { model: agent.model } : {}),
       effort: agent.effort,
       systemPrompt: buildSystemPrompt(team, conversation, agent, '', notes, scope.context ?? ''),
       cwd: turnCwd({ team, agent, ...(scope.cwd ? { cwd: scope.cwd } : {}) }),
@@ -87,7 +104,7 @@ export function buildQueryOptions(team: Team, conversation: Conversation, agent:
     : [...agent.tools, ...Object.keys(mcpServers).map((n) => `mcp__${n}`)]
   const mcpNote = agent.mcpServers.length > 0 ? ` You also have MCP tools from: ${agent.mcpServers.join(', ')}.` : ''
   const options: Options = {
-    model: agent.model,
+    ...(agent.model && agent.model !== 'default' ? { model: agent.model } : {}),
     effort: agent.effort,
     systemPrompt: buildSystemPrompt(team, conversation, agent, mcpNote, notes, scope.context ?? ''),
     cwd: turnCwd({ team, agent, ...(scope.cwd ? { cwd: scope.cwd } : {}) }),
@@ -118,14 +135,17 @@ export function buildQueryOptions(team: Team, conversation: Conversation, agent:
 
 export async function runClaudeTurn(params: RunTurnParams): Promise<TurnResult> {
   const { team, conversation, agent, provider, sessionId, signal, handlers, note, notes } = params
+  const selected = turnImages(conversation, agent, params.resolveAttachment, params.inputMessageId)
+  if (selected.problem) return { text: imageReply(team, conversation, 'unreadable') }
+  if (selected.images.length > 0 && imageSupport(provider, agent.model, providerModels.inputModalities(agent.provider, provider, agent.model)) === 'unsupported') return { text: imageReply(team, conversation, 'unsupported') }
   const abort = new AbortController()
   const onAbort = (): void => abort.abort()
   if (signal.aborted) abort.abort()
   else signal.addEventListener('abort', onAbort, { once: true })
 
-  const prompt = buildTurnPrompt(team, conversation, agent, sessionId !== undefined, note)
+  const prompt = buildTurnPrompt(team, conversation, agent, sessionId !== undefined, note, params.inputMessageId)
   const scope: TurnScope = { ...(params.cwd ? { cwd: params.cwd } : {}), ...(params.context ? { context: params.context } : {}), ...(params.safe ? { safe: true } : {}), ...(params.readOnly ? { readOnly: true } : {}) }
-  const q = query({ prompt, options: buildQueryOptions(team, conversation, agent, provider, sessionId, abort, handlers, notes ?? '', scope) })
+  const q = query({ prompt: claudePromptInput(prompt, selected.images), options: buildQueryOptions(team, conversation, agent, provider, sessionId, abort, handlers, notes ?? '', scope) })
 
   let text = ''
   let resultText = ''
@@ -192,6 +212,7 @@ export async function runClaudeTurn(params: RunTurnParams): Promise<TurnResult> 
   }
 
   const finalText = (text.trim().length > 0 ? text : resultText).trim()
+  if (selected.images.length > 0 && error && isImageUnsupportedError(error)) return { text: imageReply(team, conversation, 'unsupported') }
   const out: TurnResult = { text: error ? finalText : stripSkip(finalText) }
   if (error) out.error = error
   if (session) out.sessionId = session

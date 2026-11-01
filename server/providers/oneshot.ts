@@ -28,7 +28,7 @@ export async function oneShot(req: OneShotRequest): Promise<string> {
       let text = ''
       let error: string | undefined
       try {
-        const q = query({ prompt, options: { model, systemPrompt: system, tools: [], allowedTools: [], permissionMode: 'dontAsk', settingSources: [], maxTurns: 1, env: claudeEnv(provider), abortController: abort, cwd } })
+        const q = query({ prompt, options: { ...(model && model !== 'default' ? { model } : {}), systemPrompt: system, tools: [], allowedTools: [], permissionMode: 'dontAsk', settingSources: [], maxTurns: 1, env: claudeEnv(provider), abortController: abort, cwd } })
         for await (const msg of q) {
           if (msg.type !== 'result') continue
           if (msg.subtype === 'success') text = msg.result

@@ -1,17 +1,20 @@
 import { useEffect, useState } from 'react'
-import { EFFORTS, MODELS, MODEL_SUGGESTIONS, PERMISSION_MODES, PROVIDER_CAPABILITIES, PROVIDER_KINDS, SHAPES, TOOLS } from '../../../shared/catalog'
+import { EFFORTS, MODELS, PERMISSION_MODES, PROVIDER_CAPABILITIES, PROVIDER_KINDS, SHAPES, TOOLS } from '../../../shared/catalog'
 import type { MessageKey } from '../../../shared/i18n'
 import { effortLabel, providerLabel } from '../../../shared/catalog-i18n'
-import type { Agent, ApprovalPolicy, AvatarShape, Effort, PermissionMode, ProviderStatus, TaskTier, Team, UsageTotals, WorkflowRole } from '../../../shared/types'
+import type { Agent, ApprovalPolicy, AvatarShape, Effort, PermissionMode, ProviderModelCatalog, TaskTier, Team, UsageTotals, WorkflowRole } from '../../../shared/types'
 
 /** Workflow roles; labels and hints are `role.<id>` / `role.<id>Hint` in the UI language. */
 const WORKFLOW_ROLES: WorkflowRole[] = ['lead', 'critic', 'implementer', 'reviewer', 'tester', 'writer']
-import { createAgent, deleteAgent, duplicateAgent, getMemory, providerStatuses, putMemory, updateAgent } from '../api'
+import { createAgent, deleteAgent, duplicateAgent, getMemory, providerModels, putMemory, updateAgent } from '../api'
 import { formatCost, formatTokens } from '../format'
 import { getLocale, t } from '../i18n'
 import { personFor } from '../people'
 import { Avatar } from './Avatar'
 import { AvatarEditor } from './AvatarEditor'
+import { ModelPicker } from './ModelPicker'
+import { defaultPersonality, prepareAgentForSave, profileIssueText, profileSaveFailure } from '../agentProfile'
+import { modelForProviderSwitch } from '../modelPicker'
 
 interface ProfileProps {
   team: Team
@@ -25,14 +28,16 @@ interface ProfileProps {
 const PALETTE = ['#2f7ef5', '#ff6a1a', '#1e90ff', '#e6396b', '#e63946', '#b5733c', '#8b5cf6', '#c98a4b', '#22c55e', '#7c4dff', '#14b8a6', '#f59e0b', '#ec4899', '#64748b']
 
 function blank(team: Team): Agent {
+  const provider = team.providers.claude ? 'claude' : Object.keys(team.providers)[0] ?? 'claude'
+  const providerDef = team.providers[provider]
   return {
     id: '',
     name: '',
     role: '',
     color: PALETTE[team.agents.length % PALETTE.length] ?? '#2f7ef5',
     shape: 'blob',
-    provider: 'claude',
-    model: 'claude-opus-5',
+    provider,
+    model: providerDef?.kind === 'openai' ? providerDef.models?.[0] ?? '' : '',
     effort: 'medium',
     personality: '',
     tools: [],
@@ -45,68 +50,69 @@ function blank(team: Team): Agent {
   }
 }
 
-function slug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-}
-
 export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps) {
   const existing = agentId ? team.agents.find((a) => a.id === agentId) : undefined
   const [draft, setDraft] = useState<Agent>(existing ?? blank(team))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [statuses, setStatuses] = useState<ProviderStatus[]>([])
+  const [providerCatalog, setProviderCatalog] = useState<ProviderModelCatalog | null>(null)
+  const [pendingProvider, setPendingProvider] = useState<string | null>(null)
+  const [modelNeedsInitialChoice, setModelNeedsInitialChoice] = useState(!existing)
 
   useEffect(() => {
     setDraft(existing ?? blank(team))
     setError(null)
     setConfirmDelete(false)
+    setProviderCatalog(null)
+    setPendingProvider(null)
+    setModelNeedsInitialChoice(!existing)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId])
-
-  useEffect(() => {
-    providerStatuses().then(setStatuses).catch(() => setStatuses([]))
-  }, [team.providers])
 
   const set = <K extends keyof Agent>(key: K, value: Agent[K]) => setDraft((d) => ({ ...d, [key]: value }))
   const toggleList = (key: 'tools' | 'mcpServers', item: string) =>
     setDraft((d) => ({ ...d, [key]: d[key].includes(item) ? d[key].filter((x) => x !== item) : [...d[key], item] }))
 
-  const provider = team.providers[draft.provider] ?? team.providers.claude
+  const provider = (team.providers[draft.provider] ?? team.providers.claude)!
   const kind = provider?.kind ?? 'claude'
-  const status = statuses.find((s) => s.id === draft.provider)
-  const modelOptions = [...new Set([...(provider?.models ?? []), ...(status?.models ?? []), ...MODEL_SUGGESTIONS[kind]])]
   const availableTools = TOOLS.filter((t) => t.kinds.includes(kind))
 
   const preview = personFor({ ...team, agents: [...team.agents.filter((a) => a.id !== draft.id), { ...draft, id: draft.id || 'new' }] }, draft.id || 'new')
   const dirty = JSON.stringify(draft) !== JSON.stringify(existing ?? blank(team))
 
-  const changeProvider = (id: string) => {
+  const changeProvider = async (id: string) => {
     const next = team.providers[id]
-    const suggestions = next ? [...(next.models ?? []), ...MODEL_SUGGESTIONS[next.kind]] : []
-    setDraft((d) => ({ ...d, provider: id, model: suggestions[0] ?? d.model, tools: d.tools.filter((t) => TOOLS.find((x) => x.id === t)?.kinds.includes(next?.kind ?? 'claude')) }))
+    if (!next) return
+    setPendingProvider(id)
+    setModelNeedsInitialChoice(true)
+    let catalog: ProviderModelCatalog | null = null
+    try { catalog = await providerModels(id) } catch { /* ModelPicker will show the localized retry state. */ }
+    setProviderCatalog(catalog)
+    setDraft((d) => ({ ...d, provider: id, model: modelForProviderSwitch(next, d.model, catalog), tools: d.tools.filter((t) => TOOLS.find((x) => x.id === t)?.kinds.includes(next.kind)) }))
+    setPendingProvider(null)
   }
 
   const save = async () => {
     setSaving(true)
     setError(null)
     try {
-      const body: Agent = { ...draft, name: draft.name.trim().toUpperCase(), role: draft.role.trim().toUpperCase() }
+      const prepared = prepareAgentForSave(draft, team.agents, existing?.id ?? null, getLocale(), crypto.randomUUID())
+      if (prepared.issue) {
+        setError(profileIssueText(prepared.issue, getLocale()))
+        return
+      }
+      const body = prepared.agent
       if (existing) {
         const { id: _id, ...patch } = body
         await updateAgent(existing.id, patch)
         onSaved(existing.id)
       } else {
-        if (!body.name) throw new Error(t('profile.needName'))
-        const id = slug(body.name) || `agent-${crypto.randomUUID()}`
-        await createAgent({ ...body, id })
-        onSaved(id)
+        await createAgent(body)
+        onSaved(body.id)
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+    } catch {
+      setError(profileSaveFailure(getLocale()))
     } finally {
       setSaving(false)
     }
@@ -118,8 +124,8 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
     try {
       const { agent } = await duplicateAgent(existing.id)
       onSaved(agent.id)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+    } catch {
+      setError(profileSaveFailure(getLocale()))
     } finally {
       setSaving(false)
     }
@@ -131,8 +137,8 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
     try {
       await deleteAgent(existing.id)
       onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+    } catch {
+      setError(profileSaveFailure(getLocale()))
       setSaving(false)
     }
   }
@@ -176,12 +182,12 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
           <summary>{t('profile.identity')}</summary>
           <div className="profile-group-content">
           <label className="field">
-            <span>{t('profile.name')}</span>
-            <input autoFocus={!existing} value={draft.name} onChange={(e) => set('name', e.target.value)} placeholder="OMAR" />
+            <span>{t('profile.name')} <b aria-hidden="true">*</b></span>
+            <input required aria-required="true" autoFocus={!existing} value={draft.name} onChange={(e) => set('name', e.target.value)} placeholder="OMAR" />
           </label>
           <label className="field">
-            <span>{t('profile.role')}</span>
-            <input value={draft.role} onChange={(e) => set('role', e.target.value)} placeholder="FULL STACK DEV" />
+            <span>{t('profile.role')} <b aria-hidden="true">*</b></span>
+            <input required aria-required="true" value={draft.role} onChange={(e) => set('role', e.target.value)} placeholder="FULL STACK DEV" />
           </label>
           <label className="field">
             <span>{t('profile.scope')}</span>
@@ -195,6 +201,7 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
           <label className="field">
             <span>{t('profile.personality')}</span>
             <textarea rows={7} value={draft.personality} onChange={(e) => set('personality', e.target.value)} placeholder={t('profile.personalityPh')} />
+            {!draft.personality.trim() && <small>{getLocale() === 'zh-CN' ? '\u672a\u586b\u5199\u81ea\u5b9a\u4e49\u4eba\u8bbe\uff1b\u4fdd\u5b58\u65f6\u4f1a\u4f7f\u7528\u4ee5\u4e0b\u9ed8\u8ba4\u4eba\u8bbe\uff1a' : 'No custom persona entered. This default will be saved:'}<br />{defaultPersonality(draft.name, draft.role, draft.scope, getLocale())}</small>}
           </label>
           <label className="toggle-row">
             <div>
@@ -208,28 +215,27 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
 
         <section className="form-section profile-model">
           <h3>{t('profile.brain')}</h3>
+          <details className="notes" style={{ marginBottom: 12 }}><summary>{getLocale() === 'zh-CN' ? '这个角色可以使用哪些能力？' : 'What can this role use?'}</summary>
+            <p>{getLocale() === 'zh-CN' ? '当前引擎：' : 'Engine: '}{({ claude: 'Claude Agent SDK', codex: 'Codex CLI', gemini: 'Gemini CLI', openai: 'Chat API' })[kind]}</p>
+            <p>{getLocale() === 'zh-CN' ? '文件和文档操作由下方勾选的工具决定。整理文件通常需要读取和写入权限；仅填写角色提示词不会自动开启工具。' : 'File and document work depends on the tools selected below. Organizing files usually needs read and write access; a persona alone does not enable tools.'}</p>
+            <p>{getLocale() === 'zh-CN' ? '电脑控制尚未接入；Codex Desktop 的电脑控制插件和应用权限不会自动授予此连接。' : 'Computer control is not connected. Codex Desktop computer-use plugins and app permissions are not automatically available to this connection.'}</p>
+          </details>
           <label className="field">
             <span>{t('profile.provider')}</span>
-            <select value={draft.provider} onChange={(e) => changeProvider(e.target.value)}>
+            <select value={pendingProvider ?? draft.provider} disabled={pendingProvider !== null} onChange={(e) => void changeProvider(e.target.value)}>
               {Object.entries(team.providers).map(([id, p]) => (
                 <option key={id} value={id}>
                   {providerLabel(getLocale(), p)}
                 </option>
               ))}
             </select>
-            {status && !status.ok && <small className="profile-connection-status">{t('profile.checkConnection')}</small>}
           </label>
           <label className="field">
-            <span>{t('profile.model')}</span>
-            <input list={`models-${draft.provider}`} value={draft.model} onChange={(e) => set('model', e.target.value)} placeholder={kind === 'claude' ? 'claude-opus-5' : t('profile.modelPh')} />
-            <datalist id={`models-${draft.provider}`}>
-              {modelOptions.map((m) => (
-                <option key={m} value={m}>
-                  {MODELS.find((x) => x.id === m)?.label ?? m}
-                </option>
-              ))}
-            </datalist>
-
+            <span>{t('profile.model')} <b aria-hidden="true">*</b></span>
+            <ModelPicker id="profile-model" providerId={draft.provider} provider={provider} model={draft.model} required initializeEmpty={!existing || modelNeedsInitialChoice} initialCatalog={providerCatalog} onChange={(model) => {
+              set('model', model)
+              if (model) setModelNeedsInitialChoice(false)
+            }} />
           </label>
           <label className="field">
             <span>{t('profile.effort')}</span>
@@ -245,7 +251,6 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
           <details className="profile-help">
             <summary>{t('profile.connectionDetails')}</summary>
             <p>{PROVIDER_KINDS.find((k) => k.id === kind)?.hint}</p>
-            {status && <p className={status.ok ? 'ok' : 'bad'}>{status.detail}</p>}
             <p>{MODELS.find((m) => m.id === draft.model)?.hint ?? (kind === 'claude' ? t('profile.modelHintClaude') : kind === 'openai' ? t('profile.modelHintApi') : t('profile.modelHintCli'))}</p>
             <p>{PROVIDER_CAPABILITIES[kind].notes}</p>
           </details>

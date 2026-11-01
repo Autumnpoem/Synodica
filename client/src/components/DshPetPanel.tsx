@@ -42,7 +42,8 @@ export function DshPetPanel({ team, projects, upstream, upstreamError, onStatus 
   }
   const patch = (p: Partial<PetStatusBody['settings']>) => {
     void petSettings(p)
-      .then((r) => take({ status, settings: r.settings }))
+      .then(() => petStatus())
+      .then(take)
       .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
   }
   const followValue = settings.follow.kind === 'team' ? 'team' : `${settings.follow.kind}:${settings.follow.id}`
@@ -102,6 +103,16 @@ export function DshPetPanel({ team, projects, upstream, upstreamError, onStatus 
         <input type="checkbox" checked={settings.overlay} onChange={(e) => patch({ overlay: e.target.checked })} /> {t('pet.browserOverlay')}
       </label>
       <p className="notes">{t('pet.optional')}</p>
+      <p className="notes">
+        {settings.locale === 'zh-CN'
+          ? `原版「查看余额」每次只显示一个已缓存账户；当前选用：${body.balanceAccount ?? '未查询'}。五小时／每周限额和其他账户请从桌宠菜单打开额度摘要或「用量与额度」。查看余额不会额外查询服务商。`
+          : `The original Balance action shows one cached account at a time; selected account: ${body.balanceAccount ?? 'not queried'}. Open Quota summary or Usage and quotas from the pet menu for 5h/week limits and other accounts. Balance does not query providers again.`}
+      </p>
+      <p className="notes">
+        {settings.locale === 'zh-CN'
+          ? '要让原版桌宠显示在应用窗口外，请在下方原版设置中将 main 的显示位置设为「桌面」。'
+          : 'To show the original pet outside the app window, set main display to Desktop in the original pet settings below.'}
+      </p>
       <p className="notes">{t('pet.safari')}</p>
       <p className="notes">{t('pet.attribution')}</p>
       {upstreamError && <p className="form-error">{upstreamError}</p>}

@@ -1,4 +1,4 @@
-import type { AccountStatus, Agent, AppState, Attachment, AvatarRef, Conversation, CorrectionMode, CorrectionRecord, McpServerDef, Message, Project, ProviderDef, ProviderStatus, Routine, RoutineRun, Skill, Task, TaskKind, TaskTier, TeamSettings } from '../../shared/types'
+import type { AccountStatus, Agent, AppState, Attachment, AvatarRef, Conversation, CorrectionMode, CorrectionRecord, McpServerDef, Message, Project, ProviderDef, ProviderModelCatalog, ProviderStatus, Routine, RoutineRun, Skill, Task, TaskKind, TaskTier, TeamSettings } from '../../shared/types'
 import type { UsageReport, UsageSettings } from '../../shared/usage'
 import { newRequestId, REQUEST_ID_HEADER, versionOf } from '../../shared/sync'
 
@@ -94,6 +94,11 @@ export function deleteProvider(id: string): Promise<unknown> {
 export async function providerStatuses(force = false): Promise<ProviderStatus[]> {
   const data = await call<{ statuses: ProviderStatus[] }>(`/api/providers/status${force ? '?force=1' : ''}`)
   return data.statuses
+}
+
+/** Loads a model list only when a user opens/selects this provider. */
+export function providerModels(providerId: string, force = false): Promise<ProviderModelCatalog> {
+  return call(`/api/providers/${encodeURIComponent(providerId)}/models${force ? '?force=1' : ''}`)
 }
 
 export interface SettingsPatch {
@@ -307,6 +312,8 @@ export function resetAvatar(target: string): Promise<unknown> {
 // ---- dsh-pet ----
 
 export interface PetStatusBody {
+  /** Account represented by the original pet balance bubble; values come from the usage cache. */
+  balanceAccount?: string
   status: { state: string; version: string; reason?: string; command?: string; animations?: number; desktop: string }
   settings: { enabled: boolean; follow: { kind: 'team' } | { kind: 'project' | 'agent'; id: string }; bridge: boolean; bubbles: boolean; overlay: boolean; locale: 'en' | 'zh-CN' }
 }

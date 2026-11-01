@@ -1,9 +1,13 @@
 {
   "name": "opengrokbot-pet-runtime",
   "private": true,
-  "description": "Pinned install of the upstream dsh-pet package (MIT, Copyright 2026 PC2005-cloud), used unmodified by OpenGrokBot. Install with `npm run pet:install` from the app folder; it verifies the registry integrity.",
+  "description": "Pinned original dsh-pet and runtime interfaces for the Synodica host. Balance uses the local sanitized usage cache; no DSH CLI, account or model provider is started.",
   "license": "MIT",
   "dependencies": {
+    "@deepseek-ai/cordis": "4.0.4",
+    "@deepseek-ai/dsh-credentials": "0.2.0-rc.1",
+    "@deepseek-ai/dsh-home-paths": "0.2.0-rc.1",
+    "@deepseek-ai/dsh-llm": "0.2.0-rc.1",
     "dsh-pet": "0.3.8"
   }
 }

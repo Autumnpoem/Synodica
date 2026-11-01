@@ -94,7 +94,7 @@ test('pet settings persist and malformed follow ids are rejected', () => {
   assert.equal(parsePetSettings({ enabled: 'yes' }).enabled, false)
 })
 
-test('browser pet routes: only the upstream renderer and settings routes pass; traversal, host-only and paid routes do not', () => {
+test('browser pet routes: renderer, settings and cached balance pass; traversal, host-only and model routes do not', () => {
   assert.equal(browserRoute('GET', '/dsh-pet-7340/config').ok, true)
   assert.equal(browserRoute('PUT', '/dsh-pet-7340/config').ok, true)
   assert.equal(browserRoute('GET', '/dsh-pet-7340/state?since=3&timeout=1000').ok, true)
@@ -112,7 +112,11 @@ test('browser pet routes: only the upstream renderer and settings routes pass; t
   const whisper = browserRoute('POST', '/dsh-pet-7340/whisper?pet=main')
   assert.equal(whisper.ok, false)
   assert.equal(whisper.ok ? '' : (whisper.body as { reason?: string }).reason, 'not-configured', 'chatter is truthfully off, not faked')
-  assert.equal(browserRoute('POST', '/dsh-pet-7340/balance').ok, false)
+  assert.equal(browserRoute('POST', '/dsh-pet-7340/balance').ok, true, 'the original balance button can read the cached account sample')
+  assert.equal(browserRoute('GET', '/dsh-pet-7340/balance').ok, false)
+  const chat = browserRoute('POST', '/dsh-pet-7340/chat')
+  assert.equal(chat.ok, false)
+  assert.equal(chat.ok ? '' : (chat.body as { reason?: string }).reason, 'not-configured')
   const unknown = browserRoute('GET', '/dsh-pet-7340/standalone-ai/settings')
   assert.equal(unknown.ok ? 0 : unknown.status, 404)
   const method = browserRoute('DELETE', '/dsh-pet-7340/config')

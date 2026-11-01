@@ -188,8 +188,8 @@ async function createWindow(target = URL) {
 function createQuotaWindow() {
   const win = new BrowserWindow({
     width: 340, height: 460, minWidth: 300, minHeight: 64,
-    frame: false, resizable: false, skipTaskbar: false,
-    backgroundColor: '#fffdf8', title: 'Synodica quota',
+    frame: false, transparent: true, hasShadow: true, resizable: false, skipTaskbar: false,
+    backgroundColor: '#00000000', title: 'Synodica quota',
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload, ...(officeUrl !== URL ? { session: remoteSession } : {}) },
   })
   win.setAlwaysOnTop(true, 'floating')

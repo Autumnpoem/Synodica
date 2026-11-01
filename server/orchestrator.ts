@@ -74,6 +74,8 @@ export interface ProjectScope {
 
 export interface OrchestratorHooks {
   activity?: ActivityTracker
+  /** Trusted canonical path for provider-readable attachments; absent in test-only orchestrators. */
+  resolveAttachment?: (file: string) => string | undefined
   /** The project a conversation belongs to, with its shared context. */
   projectFor?: (conversationId: string) => ProjectScope | undefined
   /** An employee replied in a chat (the workflow applies the decision owner's team-task blocks). */
@@ -97,6 +99,10 @@ interface TurnOptions {
   sessionScope?: 'work' | 'review'
   taskRef?: string
   projectId?: string
+  /** User message that opened this chat round; absent for workflow-only turns. */
+  inputMessageId?: string
+  /** All opening speakers in a parallel round see the same owner-message transcript. */
+  transcript?: Conversation
 }
 
 interface TurnReport {
@@ -382,10 +388,53 @@ export class Orchestrator {
     }
     const everyone = !exclusive && (atEveryone || routedEveryone || explicitEveryone(job.message.text))
     if (everyone && atEveryone) queue = queue.filter((a) => !a.muted)
-    const budget = everyone ? Math.min(12, Math.max(team.settings.maxMessagesPerRound, queue.length)) : team.settings.maxMessagesPerRound
+    const allMembersMode = team.settings.groupMode === 'everyone' && findMentions(job.message.text, members).length === 0
+    const budget = everyone ? Math.min(12, Math.max(team.settings.maxMessagesPerRound, queue.length)) : allMembersMode ? Math.min(12, team.settings.maxMessagesPerRound) : team.settings.maxMessagesPerRound
     const turns = new Map<string, number>()
     let count = 0
     let first = true
+
+    const followMentions = (agent: Agent, reply: string): void => {
+      if (!reply || signal.aborted || this.state(conversationId).pending.length > 0) return
+      if (project) this.hooks.onReply?.(conversationId, agent.id, reply)
+      if (exclusive) return
+      for (const m of findMentions(reply, members, agent.id)) {
+        const taken = turns.get(m.id) ?? 0
+        if (taken >= team.settings.maxTurnsPerAgentPerRound) continue
+        if (queue.some((q) => q.id === m.id)) continue
+        queue.push(m)
+      }
+    }
+
+    if (!exclusive && (everyone || allMembersMode) && queue.length > 1 && !signal.aborted && this.state(conversationId).pending.length === 0) {
+      const opening = queue.splice(0, Math.min(queue.length, budget))
+      const transcript = structuredClone(conversation)
+      let writerTail: Promise<void> = Promise.resolve()
+      const replies = opening.map((agent, index) => {
+        count++
+        turns.set(agent.id, (turns.get(agent.id) ?? 0) + 1)
+        const buildNote = !project && index === 0 && mode === 'build' && canWrite(agent) ? BUILD_NOTE : undefined
+        const note = index === 0 ? (job.note ?? buildNote) : undefined
+        const opts: TurnOptions = { transcript, ...(job.message.authorId === 'user' ? { inputMessageId: job.message.id } : {}), ...(note ? { note } : {}), ...(project ? { context: project.context, cwd: project.workspace, safe: true, projectId: project.id } : {}) }
+        const run = async (): Promise<string> => (await this.turn(conversationId, agent, signal, opts)).text
+        if (!canWrite(agent)) return run()
+        const reply = writerTail.then(() => signal.aborted || this.state(conversationId).pending.length > 0 ? '' : run())
+        writerTail = reply.then(() => undefined, () => undefined)
+        return reply
+      })
+      const settled = await Promise.allSettled(replies)
+      const failed = settled.find((r): r is PromiseRejectedResult => r.status === 'rejected')
+      if (failed) throw failed.reason
+      const results = settled.map((r) => (r as PromiseFulfilledResult<string>).value)
+      first = false
+      for (let i = 0; i < opening.length; i++) {
+        const agent = opening[i]
+        const reply = results[i]
+        if (!agent || !reply) continue
+        spoke.add(agent.id)
+        followMentions(agent, reply)
+      }
+    }
 
     while (queue.length > 0 && count < budget && !signal.aborted) {
       const agent = queue.shift()
@@ -398,20 +447,13 @@ export class Orchestrator {
       const buildNote = !project && first && mode === 'build' && agent.tools.some((t) => ['Edit', 'Write'].includes(t)) ? BUILD_NOTE : undefined
       const note = first ? (job.note ?? buildNote) : undefined
       first = false
-      const opts: TurnOptions = { ...(note ? { note } : {}), ...(project ? { context: project.context, cwd: project.workspace, safe: true, projectId: project.id } : {}) }
+      const opts: TurnOptions = { ...(job.message.authorId === 'user' ? { inputMessageId: job.message.id } : {}), ...(note ? { note } : {}), ...(project ? { context: project.context, cwd: project.workspace, safe: true, projectId: project.id } : {}) }
       const reply = (await this.turn(conversationId, agent, signal, opts)).text
       if (reply) spoke.add(agent.id)
       // Interrupted (Stop or a correction): a late reply stays in the history but changes nothing.
       if (signal.aborted) break
       if (!reply) continue
-      if (project) this.hooks.onReply?.(conversationId, agent.id, reply)
-      if (exclusive) continue
-      for (const m of findMentions(reply, members, agent.id)) {
-        const taken = turns.get(m.id) ?? 0
-        if (taken >= team.settings.maxTurnsPerAgentPerRound) continue
-        if (queue.some((q) => q.id === m.id)) continue
-        queue.push(m)
-      }
+      followMentions(agent, reply)
     }
     if (queue.length > 0 && count >= budget && !signal.aborted && this.state(conversationId).pending.length === 0) {
       this.postNote(conversationId, `Round limit reached; no turn was available for: ${[...new Set(queue.map((a) => a.name))].join(', ')}.`)
@@ -470,7 +512,9 @@ export class Orchestrator {
 
     const params: RunTurnParams = {
       team,
-      conversation,
+      conversation: opts.transcript ?? conversation,
+      ...(opts.inputMessageId ? { inputMessageId: opts.inputMessageId } : {}),
+      ...(this.hooks.resolveAttachment ? { resolveAttachment: this.hooks.resolveAttachment } : {}),
       agent,
       provider,
       sessionId,

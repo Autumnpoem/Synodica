@@ -150,3 +150,17 @@ test('provider capabilities are declared for every adapter kind and differ hones
   assert.equal(PROVIDER_CAPABILITIES.openai.tools, 'local')
   assert.equal(PROVIDER_CAPABILITIES.claude.mcp, true)
 })
+
+
+test('Claude default follows the SDK model while explicit custom IDs survive normal and review turns', () => {
+  const team = mixedTeam(tmp())
+  const conversation: Conversation = { id: 'default-model', kind: 'dm', name: 'Test', memberIds: ['user', 'lead'], messages: [], sessions: {} }
+  const provider = team.providers.claude!
+  for (const readOnly of [false, true]) {
+    const automatic = member('lead', 'claude', ['lead'], { model: 'default' })
+    const options = buildQueryOptions(team, conversation, automatic, provider, undefined, new AbortController(), undefined, '', { readOnly })
+    assert.equal(options.model, undefined, 'default must not be sent as a literal model ID')
+    const custom = { ...automatic, model: 'custom-model-from-gateway' }
+    assert.equal(buildQueryOptions(team, conversation, custom, provider, undefined, new AbortController(), undefined, '', { readOnly }).model, custom.model)
+  }
+})

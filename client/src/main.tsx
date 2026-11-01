@@ -4,6 +4,7 @@ import { App } from './App'
 import { PetApp } from './PetApp'
 import { QuotaApp } from './QuotaApp'
 import { RemotePetApp } from './RemotePetApp'
+import { initializeTheme } from './theme'
 import './styles.css'
 import './settings.css'
 import './features.css'
@@ -13,6 +14,8 @@ import './pet.css'
 import './usage.css'
 import './appearance.css'
 import './quota-window.css'
+
+initializeTheme()
 
 const el = document.getElementById('root')
 if (el) {

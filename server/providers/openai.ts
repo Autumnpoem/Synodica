@@ -1,4 +1,6 @@
 import { needsApproval } from '../approvals.js'
+import { imageReply, imageSupport, isImageUnsupportedError, turnImages } from '../attachments.js'
+import { providerModels } from '../provider-models.js'
 import { buildSystemPrompt, buildTurnPrompt, stripSkip } from '../prompt.js'
 import { allowedLocalTools, runLocalTool, type LocalToolPolicy } from './localexec.js'
 import { LOCAL_TOOLS, summarizeLocalTool } from './localtools.js'
@@ -6,7 +8,7 @@ import { emptyUsage, mayBypass, turnCwd, type RunTurnParams, type TurnResult } f
 
 interface ChatMessage {
   role: 'system' | 'user' | 'assistant' | 'tool'
-  content: string | null
+  content: string | null | ({ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } })[]
   tool_calls?: ToolCall[]
   tool_call_id?: string
   /** Thinking models (e.g. Kimi, DeepSeek) may need their reasoning back alongside tool calls. */
@@ -83,13 +85,17 @@ async function httpError(label: string, res: Response): Promise<string> {
 export async function runOpenAiTurn(params: RunTurnParams, fetchImpl: FetchLike = fetch): Promise<TurnResult> {
   const { team, conversation, agent, provider, signal, handlers, note, notes, context } = params
   const started = Date.now()
+  const selected = turnImages(conversation, agent, params.resolveAttachment, params.inputMessageId)
+  if (selected.problem) return { text: imageReply(team, conversation, 'unreadable') }
+  if (selected.images.length > 0 && imageSupport(provider, agent.model, providerModels.inputModalities(agent.provider, provider, agent.model)) === 'unsupported') return { text: imageReply(team, conversation, 'unsupported') }
   const cwd = turnCwd(params)
   // The local shell has no OS sandbox: project (safe) turns and read-only turns never get it.
   const policy: LocalToolPolicy = { allowOutside: mayBypass(params), shell: !params.safe && !params.readOnly, readOnly: params.readOnly === true }
   const tools = allowedLocalTools(agent.tools, policy)
+  const prompt = buildTurnPrompt(team, conversation, agent, false, note, params.inputMessageId)
   const messages: ChatMessage[] = [
     { role: 'system', content: buildSystemPrompt(team, conversation, agent, '', notes ?? '', context ?? '') },
-    { role: 'user', content: buildTurnPrompt(team, conversation, agent, false, note) },
+    { role: 'user', content: selected.images.length ? [{ type: 'text', text: prompt }, ...selected.images.map((image) => ({ type: 'image_url' as const, image_url: { url: `data:${image.mime};base64,${image.data.toString('base64')}` } }))] : prompt },
   ]
   const usage = emptyUsage(agent.model)
   usage.numTurns = 0
@@ -116,7 +122,13 @@ export async function runOpenAiTurn(params: RunTurnParams, fetchImpl: FetchLike 
     } catch (err) {
       return done(signal.aborted ? 'Stopped.' : `Could not reach ${provider.baseUrl}: ${err instanceof Error ? err.message : String(err)}`)
     }
-    if (!res.ok || !res.body) return done(await httpError(provider.label, res))
+    if (!res.ok || !res.body) {
+      if (selected.images.length > 0 && (res.status === 400 || res.status === 422)) {
+        const detail = await res.clone().text().catch(() => '')
+        if (isImageUnsupportedError(detail)) return { text: imageReply(team, conversation, 'unsupported') }
+      }
+      return done(await httpError(provider.label, res))
+    }
 
     const calls: ToolCall[] = []
     const slot = new Map<string, number>()

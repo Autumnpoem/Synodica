@@ -1,4 +1,6 @@
 import { buildSystemPrompt, buildTurnPrompt, stripSkip } from '../prompt.js'
+import { imageReply, imageSupport, isImageUnsupportedError, stageImages, turnImages, type TurnImage } from '../attachments.js'
+import { providerModels } from '../provider-models.js'
 import { runCli } from './cli.js'
 import { emptyUsage, mayBypass, turnCwd, type RunTurnParams, type TurnResult } from './types.js'
 
@@ -20,19 +22,33 @@ export function sandboxFor(tools: string[], autoApprove: boolean, readOnly = fal
   return tools.some((t) => ['Edit', 'Write', 'Bash'].includes(t)) ? 'workspace-write' : 'read-only'
 }
 
+/** Put each -i after the stdin prompt marker; older CLI parsers can consume a preceding prompt. */
+export function codexExecArgs(common: string[], sessionId: string | undefined, images: TurnImage[]): string[] {
+  return sessionId
+    ? ['exec', ...common, 'resume', sessionId, '-', ...images.flatMap((image) => ['-i', image.path])]
+    : ['exec', ...common, '-', ...images.flatMap((image) => ['-i', image.path])]
+}
+
 /** OpenAI Codex CLI in headless mode. Uses `codex login` (ChatGPT subscription) unless the provider has an API key. */
 export async function runCodexTurn(params: RunTurnParams): Promise<TurnResult> {
   const { team, conversation, agent, provider, sessionId, signal, handlers, note, notes, context } = params
+  const selected = turnImages(conversation, agent, params.resolveAttachment, params.inputMessageId)
+  if (selected.problem) return { text: imageReply(team, conversation, 'unreadable') }
+  if (selected.images.length > 0 && imageSupport(provider, agent.model, providerModels.inputModalities(agent.provider, provider, agent.model)) === 'unsupported') return { text: imageReply(team, conversation, 'unsupported') }
+  let staged: ReturnType<typeof stageImages> | undefined
+  try { if (selected.images.some((image) => image.path.includes(','))) staged = stageImages(selected.images) }
+  catch { return { text: imageReply(team, conversation, 'unreadable') } }
   const started = Date.now()
   const cwd = turnCwd(params)
   const bypass = mayBypass(params) && !params.readOnly
   const common = ['--json', '--skip-git-repo-check', '-C', cwd, ...(agent.model && agent.model !== 'default' ? ['-m', agent.model] : []), '-s', sandboxFor(agent.tools, bypass, params.readOnly === true), '-c', `model_reasoning_effort="${EFFORT[agent.effort] ?? 'medium'}"`]
   if (bypass) common.push('--dangerously-bypass-approvals-and-sandbox')
-  const args = sessionId ? ['exec', ...common, 'resume', sessionId, '-'] : ['exec', ...common, '-']
+  const images = staged ? selected.images.map((image, index) => ({ ...image, path: staged.paths[index]! })) : selected.images
+  const args = codexExecArgs(common, sessionId, images)
 
   // Codex has no system-prompt flag: the persona rides in the first prompt of the thread; project
   // context changes over time, so it rides along on every turn.
-  const transcript = buildTurnPrompt(team, conversation, agent, sessionId !== undefined, note)
+  const transcript = buildTurnPrompt(team, conversation, agent, sessionId !== undefined, note, params.inputMessageId)
   const ctx = sessionId && context ? `<project-context>\n${context}\n</project-context>\n\n` : ''
   const stdin = sessionId ? `${ctx}${transcript}` : `<system>\n${buildSystemPrompt(team, conversation, agent, '', notes ?? '', context ?? '')}\n</system>\n\n${transcript}`
 
@@ -45,7 +61,8 @@ export async function runCodexTurn(params: RunTurnParams): Promise<TurnResult> {
   let error: string | undefined
   const usage = emptyUsage(agent.model)
 
-  const run = await runCli('codex', args, {
+  let run: Awaited<ReturnType<typeof runCli>>
+  try { run = await runCli('codex', args, {
     cwd,
     env,
     stdin,
@@ -85,7 +102,7 @@ export async function runCodexTurn(params: RunTurnParams): Promise<TurnResult> {
         error = ev.error?.message ?? ev.message ?? 'Codex reported an error.'
       }
     },
-  })
+  }) } finally { staged?.cleanup() }
 
   usage.durationMs = Date.now() - started
   if (run.aborted) error = 'Stopped.'
@@ -94,6 +111,8 @@ export async function runCodexTurn(params: RunTurnParams): Promise<TurnResult> {
     error = tail || `codex exited with code ${run.exitCode}`
     if (/not logged in|login|auth/i.test(tail) && !/logged in using/i.test(tail)) error = `Codex is not logged in. Run \`codex login\` in a terminal. (${tail})`
   }
+
+  if (selected.images.length > 0 && error && isImageUnsupportedError(error)) return { text: imageReply(team, conversation, 'unsupported') }
 
   const out: TurnResult = { text: error ? text.trim() : stripSkip(text), usage }
   if (error) out.error = error

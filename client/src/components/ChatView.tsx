@@ -216,6 +216,7 @@ function MessageGroup({ team, group, onReply }: { team: Team; group: Group; onRe
       )}
       {group.messages.map((m, i) => {
         const last = i === group.messages.length - 1
+        const activityLines = (m.activity ?? []).filter((line) => m.status === 'streaming' || !/^Thinking(?:\.\.\.|…)?$/i.test(line.trim()))
         // Employees' shared files come as attachments; older messages fall back to path detection.
         const shared = m.attachments && m.attachments.length > 0 ? m.attachments : !mine && m.status === 'done' ? producedFiles(m.text).map(attachmentFromPath) : []
         return (
@@ -230,12 +231,12 @@ function MessageGroup({ team, group, onReply }: { team: Team; group: Group; onRe
               <div dir="auto" className={`bubble${m.status === 'streaming' ? ' is-streaming' : ''}${m.status === 'error' ? ' is-error' : ''}${m.status === 'superseded' ? ' is-superseded' : ''}${m.authorId === 'workflow' ? ' is-workflow' : ''}`}>
                 {m.status === 'superseded' && <div className="superseded-label">{t('chat.superseded')}</div>}
                 {m.taskRef && <span className="task-ref">{m.taskRef}</span>}
-                {m.activity && m.activity.length > 0 && (
+                {activityLines.length > 0 && (
                   <div className="activity">
-                    {m.activity.slice(-4).map((line, j) => (
+                    {activityLines.slice(-4).map((line, j) => (
                       <div key={j} className="activity-line">
                         <ToolIcon />
-                        <span>{line}</span>
+                        <span>{/^Thinking(?:\.\.\.|…)?$/i.test(line.trim()) ? (getLocale() === 'zh-CN' ? '处理中…' : 'Processing…') : line}</span>
                       </div>
                     ))}
                   </div>

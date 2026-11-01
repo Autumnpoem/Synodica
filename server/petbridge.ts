@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from '
 import path from 'node:path'
 import { isLocale, translate, type Locale, type MessageKey } from '../shared/i18n.js'
 import type { ActivitySnapshot, AgentActivityState } from '../shared/types.js'
+import type { UsageReport, UsageRow } from '../shared/usage.js'
 import type { PetRuntime } from './petruntime.js'
 
 /** Upstream work-status tiers (dsh-pet HOST_WORK_STATUS_STATES), null = idle. */
@@ -11,6 +12,43 @@ export const PET_TASK_MAX = 40
 const PRIORITY: PetWorkState[] = ['waiting', 'error', 'working', 'thinking', 'result', 'success']
 
 export type PetFollow = { kind: 'team' } | { kind: 'project'; id: string } | { kind: 'agent'; id: string }
+
+/** The original pet's documented balance result, using only already-cached UsageMeter samples. */
+export type PetBalanceResult =
+  | { ok: false; provider: string; reason: 'unsupported' | 'fetch-error' | 'credential-missing'; message?: string }
+  | { ok: true; provider: string; shape: 'money'; data: { wallets: { currency: string; total: string; granted: string; toppedUp: string }[] } }
+  | { ok: true; provider: string; shape: 'points'; data: { unit: string; total: string } }
+  | { ok: true; provider: string; shape: 'windows'; data: { monthly: number; monthlyResetsAt?: string; rolling?: number; rollingResetsAt?: string; rollingLabel?: string; weekly?: number; weeklyResetsAt?: string } }
+
+/** The pet presents one account at a time; never add currencies or borrow another employee's data. */
+export function balanceFromUsage(report: UsageReport, follow: PetFollow): PetBalanceResult {
+  const rows = follow.kind === 'agent' ? report.rows.filter((row) => row.agents.some((agent) => agent.id === follow.id)) : report.rows
+  const label = (row: UsageRow) => row.providers[0]?.label ?? row.type
+  for (const row of rows) {
+    const sample = row.snapshot
+    if (row.state !== 'ok' || row.stale || !sample) continue
+    const wallets = sample.balances.filter((b) => b.total !== undefined && b.granted !== undefined && b.paid !== undefined)
+      .map((b) => ({ currency: b.currency, total: b.total!, granted: b.granted!, toppedUp: b.paid! }))
+    if (wallets.length === 1 && (wallets[0]!.currency !== 'CNY' && wallets[0]!.currency !== 'USD' || (wallets[0]!.currency === 'USD' && Number(wallets[0]!.total) === 0))) {
+      // Upstream money bubbles print ¥ for any non-USD currency, even a sole zero-USD wallet.
+      return { ok: true, provider: label(row), shape: 'points', data: { unit: wallets[0]!.currency, total: wallets[0]!.total } }
+    }
+    if (wallets.length > 0 && wallets.every((wallet) => wallet.currency === 'CNY' || wallet.currency === 'USD')) return { ok: true, provider: label(row), shape: 'money', data: { wallets } }
+    const monthly = sample.windows.find((w) => (w.kind === 'monthly-coding' || w.kind === 'monthly-total') && w.usedPercent !== undefined)
+    if (monthly) {
+      const rolling = sample.windows.find((w) => w.kind === 'five-hour' && w.usedPercent !== undefined)
+      const weekly = sample.windows.find((w) => w.kind === 'seven-day' && w.usedPercent !== undefined)
+      const reset = (n: number | undefined) => n !== undefined && Number.isFinite(n) ? new Date(n).toISOString() : undefined
+      return { ok: true, provider: label(row), shape: 'windows', data: {
+        monthly: monthly.usedPercent!, ...(reset(monthly.resetsAt) ? { monthlyResetsAt: reset(monthly.resetsAt) } : {}),
+        ...(rolling ? { rolling: rolling.usedPercent, rollingLabel: '5h', ...(reset(rolling.resetsAt) ? { rollingResetsAt: reset(rolling.resetsAt) } : {}) } : {}),
+        ...(weekly ? { weekly: weekly.usedPercent, ...(reset(weekly.resetsAt) ? { weeklyResetsAt: reset(weekly.resetsAt) } : {}) } : {}),
+      } }
+    }
+    if (sample.credits?.balance !== undefined) return { ok: true, provider: label(row), shape: 'points', data: { unit: 'credits', total: sample.credits.balance } }
+  }
+  return { ok: false, provider: rows[0] ? label(rows[0]) : 'Synodica', reason: 'unsupported', message: 'No compatible current balance for the selected account. Open Usage for all accounts and 5h/week limits.' }
+}
 
 export interface PetSettings {
   /** Start the upstream pet host with the server. Off by default: nothing starts or downloads by itself. */

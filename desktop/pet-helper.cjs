@@ -1,7 +1,8 @@
 // Helper mode of Synodica's Electron entry: the upstream dsh-pet host starts its desktop helper
 // with this app's Electron (DSH_PET_ELECTRON_PATH). Before the upstream helper (runtime/electron-helper
 // /main.js, unmodified) runs, its Electron profile is moved into Synodica's dedicated pet home with
-// the documented app.setPath API. Upstream then calls app.setName('dsh-pet-electron-helper'), which no
+// the documented app.setPath API. Its loadFile('index.html') also needs the original helper folder
+// as Electron's app root. Upstream then calls app.setName('dsh-pet-electron-helper'), which no
 // longer changes where userData is: an explicit path wins over the name-derived default. The user's
 // global Application Support / AppData / ~/.config folder of that name is never created or read.
 const fs = require('node:fs')
@@ -36,6 +37,7 @@ function runHelper(app, launch, load = require) {
   } catch {
     // Older Electron without a settable crash dump path: nothing is written there unless a crash reporter starts.
   }
+  app.setAppPath(path.dirname(launch.main))
   load(launch.main)
 }
 

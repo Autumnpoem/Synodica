@@ -20,6 +20,7 @@ function fixture(enabled = true) {
     app: { get: (url, fn) => routes.set(url, fn), post: (url, fn) => routes.set(url, fn) },
     pet: runtime, petSettings: { get: () => settings, update: (patch) => Object.assign(settings, patch) },
     petBridge: { sync: async () => {}, invalidate() {} }, PET_PACKAGE: {}, INSTANCE_NONCE: 'fixture',
+    balanceFromUsage: () => ({ ok: false, provider: 'Synodica' }), usage: { report: () => ({}) },
   })
   const localFetch = async (url, init) => {
     const fn = routes.get(new URL(url).pathname)

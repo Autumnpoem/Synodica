@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { RATE_LIMIT_LABELS } from '../../../shared/catalog'
-import type { AccountStatus, AutoReviewRule, Conversation, HelperModel, McpServerDef, Routine, Team, TeamSettings, UsageSummary, UsageTotals } from '../../../shared/types'
-import { deleteMcpServer, putMcpServer, putSettings, refreshAccount } from '../api'
+import type { AccountStatus, AutoReviewRule, Conversation, HelperModel, McpServerDef, ProviderModelCatalog, Routine, Team, TeamSettings, UsageSummary, UsageTotals } from '../../../shared/types'
+import { deleteMcpServer, providerModels, putMcpServer, putSettings, refreshAccount } from '../api'
 import { formatCost, formatRelative, formatTokens, modelLabel } from '../format'
 import { MARKETPLACE, type MarketplaceItem } from '../marketplace'
 import { conversationTitle, personFor } from '../people'
 import { CHINESE_REPLY_LANGUAGE, type MessageKey } from '../../../shared/i18n'
 import { catalogText, effortLabel, providerLabel, rateLimitLabel } from '../../../shared/catalog-i18n'
-import { getLocale, t } from '../i18n'
+import { getLocale, t, useLocale } from '../i18n'
 import { Avatar } from './Avatar'
 import { AvatarEditor } from './AvatarEditor'
 import { OfficeConnectionPanel } from '../QuotaApp'
@@ -15,7 +15,10 @@ import { LocaleSwitch } from './LocaleSwitch'
 import { Providers } from './Providers'
 import { Routines } from './Routines'
 import { Skills } from './Skills'
+import { ModelPicker } from './ModelPicker'
+import { modelForProviderSwitch } from '../modelPicker'
 import { exportAgentUrl, importAgent } from '../api'
+import { AppearancePicker } from './AppearancePicker'
 
 export type SettingsSection = 'general' | 'team' | 'providers' | 'marketplace' | 'routines' | 'skills' | 'usage' | 'account'
 
@@ -113,6 +116,7 @@ function localizedMarketSecret(key: string, fallback: string): string {
 /* ---------- General ---------- */
 
 function General({ team }: SettingsProps) {
+  const locale = useLocale()
   const [company, setCompany] = useState(team.company)
   const [ownerName, setOwnerName] = useState(team.owner.name)
   const [ownerTitle, setOwnerTitle] = useState(team.owner.title)
@@ -148,6 +152,9 @@ function General({ team }: SettingsProps) {
         <AvatarEditor target="user" person={personFor(team, 'user')} />
         <Row title={t('settings.language')} hint={t('settings.languageHint')}>
           <LocaleSwitch />
+        </Row>
+        <Row title={locale === 'zh-CN' ? '外观' : 'Appearance'} hint={locale === 'zh-CN' ? '仅影响此设备上的界面。' : 'Changes the interface on this device only.'}>
+          <AppearancePicker />
         </Row>
         <Row title={t('settings.replyChinese')} hint={t('settings.replyHint')}>
           <input
@@ -251,17 +258,30 @@ function General({ team }: SettingsProps) {
 }
 
 function HelperPicker({ team, value, offMode, offLabel, onChange }: { team: Team; value: HelperModel; offMode: 'deterministic' | 'off'; offLabel: string; onChange: (v: HelperModel) => void }) {
+  const [catalog, setCatalog] = useState<ProviderModelCatalog | null>(null)
+  const [switching, setSwitching] = useState<string | null>(null)
   const model = value.mode === 'model' ? value : null
   const def = model ? team.providers[model.provider] : undefined
+  const switchProvider = async (id: string) => {
+    if (id === '__off') {
+      onChange(offMode === 'off' ? { mode: 'off' } : { mode: 'deterministic' })
+      return
+    }
+    const next = team.providers[id]
+    if (!next) return
+    setSwitching(id)
+    let nextCatalog: ProviderModelCatalog | null = null
+    try { nextCatalog = await providerModels(id) } catch { /* The model picker provides a localized retry path. */ }
+    setCatalog(nextCatalog)
+    onChange({ mode: 'model', provider: id, model: modelForProviderSwitch(next, model?.model ?? '', nextCatalog) })
+    setSwitching(null)
+  }
   return (
     <>
       <select
-        value={model ? model.provider : '__off'}
-        onChange={(e) => {
-          const id = e.target.value
-          if (id === '__off') onChange(offMode === 'off' ? { mode: 'off' } : { mode: 'deterministic' })
-          else onChange({ mode: 'model', provider: id, model: model && model.provider === id ? model.model : (team.providers[id]?.models?.[0] ?? '') })
-        }}
+        value={switching ?? (model ? model.provider : '__off')}
+        disabled={switching !== null}
+        onChange={(e) => void switchProvider(e.target.value)}
       >
         <option value="__off">{offLabel}</option>
         {Object.entries(team.providers).map(([id, d]) => (
@@ -270,7 +290,7 @@ function HelperPicker({ team, value, offMode, offLabel, onChange }: { team: Team
           </option>
         ))}
       </select>
-      {model && <input value={model.model} onChange={(e) => onChange({ mode: 'model', provider: model.provider, model: e.target.value })} placeholder={def?.kind === 'codex' || def?.kind === 'gemini' ? 'default' : t('profile.modelPh')} />}
+      {model && def && <ModelPicker id={`${offMode}-model`} providerId={model.provider} provider={def} model={model.model} initializeEmpty={!model.model} initialCatalog={catalog?.provider === model.provider ? catalog : null} onChange={(nextModel) => onChange({ mode: 'model', provider: model.provider, model: nextModel })} />}
     </>
   )
 }

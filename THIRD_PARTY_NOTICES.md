@@ -62,3 +62,16 @@ SOFTWARE.
   `pet-runtime/node_modules/` and run without modification. No file of the package is copied into
   this repository; the package's own `LICENSE` file is installed with it and is the authoritative
   license text.
+
+
+### DeepSeek Harness runtime interface libraries
+
+The dedicated pet runtime includes the official `@deepseek-ai/cordis` 4.0.4,
+`@deepseek-ai/dsh-home-paths` 0.2.0-rc.1, `@deepseek-ai/dsh-credentials` 0.2.0-rc.1
+and `@deepseek-ai/dsh-llm` 0.2.0-rc.1 interface libraries so the original pet's
+public `apply(ctx)` and balance-registration hooks can load. These pinned versions
+are MIT licensed; their license files and the licenses of their dependencies are
+retained in the packaged `pet-runtime/node_modules` tree. Synodica supplies its
+own host context and sanitized usage snapshot. It does not install or launch the
+DSH CLI, use these libraries to read the user's credential stores, or start an LLM
+service. The original dsh-pet package and animation assets remain unchanged.

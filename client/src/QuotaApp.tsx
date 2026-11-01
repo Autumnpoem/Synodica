@@ -5,11 +5,11 @@ import { fetchUsage, refreshUsage } from './api'
 import { desktopBridge } from './companion'
 import { connectEventStream } from './eventStream'
 import { useLocale } from './i18n'
-import { QuotaSummary } from './components/QuotaDock'
+import { QuotaBrand, QuotaSummary } from './components/QuotaDock'
 
 const words = {
-  en: { title: 'Account quota', refresh: 'Refresh', refreshing: 'Refreshing…', collapse: 'Collapse', expand: 'Expand', pin: 'Always on top', unpin: 'Unpin', close: 'Close', error: 'Could not load quota report', connection: 'Office', local: 'Local office', remote: 'Remote office', address: 'Office URL', token: 'Access token', connect: 'Connect', disconnect: 'Switch to local', connecting: 'Connecting…', hint: 'Use the current office access token. It is used for this sign-in only.' },
-  'zh-CN': { title: '\u8d26\u6237\u989d\u5ea6', refresh: '\u5237\u65b0', refreshing: '\u5237\u65b0\u4e2d…', collapse: '\u6536\u8d77', expand: '\u5c55\u5f00', pin: '\u7f6e\u9876', unpin: '\u53d6\u6d88\u7f6e\u9876', close: '\u5173\u95ed', error: '\u65e0\u6cd5\u8bfb\u53d6\u989d\u5ea6\u62a5\u544a', connection: '\u529e\u516c\u5ba4', local: '\u672c\u5730\u529e\u516c\u5ba4', remote: '\u8fdc\u7a0b\u529e\u516c\u5ba4', address: '\u529e\u516c\u5ba4\u7f51\u5740', token: '\u8bbf\u95ee\u4ee4\u724c', connect: '\u8fde\u63a5', disconnect: '\u5207\u56de\u672c\u5730', connecting: '\u8fde\u63a5\u4e2d…', hint: '\u586b\u5199\u5f53\u524d\u529e\u516c\u5ba4\u8bbf\u95ee\u4ee4\u724c\uff0c\u4ec5\u7528\u4e8e\u672c\u6b21\u767b\u5f55\u3002' },
+  en: { title: 'Quota cockpit', refresh: 'Refresh', refreshing: 'Refreshing…', collapse: 'Collapse', expand: 'Expand', pin: 'Always on top', unpin: 'Unpin', close: 'Close', error: 'Could not load quota report', connection: 'Office', local: 'Local office', remote: 'Remote office', address: 'Office URL', token: 'Access token', connect: 'Connect', disconnect: 'Switch to local', connecting: 'Connecting…', hint: 'Use the current office access token. It is used for this sign-in only.' },
+  'zh-CN': { title: '额度驾驶舱', refresh: '\u5237\u65b0', refreshing: '\u5237\u65b0\u4e2d…', collapse: '\u6536\u8d77', expand: '\u5c55\u5f00', pin: '\u7f6e\u9876', unpin: '\u53d6\u6d88\u7f6e\u9876', close: '\u5173\u95ed', error: '\u65e0\u6cd5\u8bfb\u53d6\u989d\u5ea6\u62a5\u544a', connection: '\u529e\u516c\u5ba4', local: '\u672c\u5730\u529e\u516c\u5ba4', remote: '\u8fdc\u7a0b\u529e\u516c\u5ba4', address: '\u529e\u516c\u5ba4\u7f51\u5740', token: '\u8bbf\u95ee\u4ee4\u724c', connect: '\u8fde\u63a5', disconnect: '\u5207\u56de\u672c\u5730', connecting: '\u8fde\u63a5\u4e2d…', hint: '\u586b\u5199\u5f53\u524d\u529e\u516c\u5ba4\u8bbf\u95ee\u4ee4\u724c\uff0c\u4ec5\u7528\u4e8e\u672c\u6b21\u767b\u5f55\u3002' },
 } as const
 
 /** Only rendered at #/quota in the desktop shell. Fetches the same sanitized report as Usage. */
@@ -48,9 +48,9 @@ export function QuotaApp() {
   const action = (name: 'close' | 'pin' | 'collapse') => void bridge?.quotaAction(name).then(setWindowState)
   return <main className="quota-native">
     <header className="quota-native-head">
-      <strong>{t.title}</strong>
+      <QuotaBrand title={t.title} />
       <div className="quota-native-actions">
-        <button type="button" onClick={() => action('pin')} title={windowState.pinned ? t.unpin : t.pin} aria-label={windowState.pinned ? t.unpin : t.pin}>{windowState.pinned ? '●' : '○'}</button>
+        <button type="button" onClick={() => action('pin')} title={windowState.pinned ? t.unpin : t.pin} aria-label={windowState.pinned ? t.unpin : t.pin}><svg width="15" height="15" viewBox="0 0 20 20" fill={windowState.pinned ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.4" aria-hidden="true"><path d="m7 2 6 0-1 5 3 4H5l3-4-1-5Z"/><path d="M10 11v7"/></svg></button>
         <button type="button" onClick={() => action('collapse')} title={windowState.collapsed ? t.expand : t.collapse} aria-label={windowState.collapsed ? t.expand : t.collapse}>{windowState.collapsed ? '▢' : '−'}</button>
         <button type="button" onClick={() => action('close')} title={t.close} aria-label={t.close}>×</button>
       </div>

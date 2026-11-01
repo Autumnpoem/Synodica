@@ -1,4 +1,6 @@
 import { buildSystemPrompt, buildTurnPrompt, stripSkip } from '../prompt.js'
+import { imageReply, imageSupport, isImageUnsupportedError, stageImages, turnImages } from '../attachments.js'
+import { providerModels } from '../provider-models.js'
 import { runCli } from './cli.js'
 import { emptyUsage, mayBypass, turnCwd, type RunTurnParams, type TurnResult } from './types.js'
 
@@ -13,6 +15,12 @@ function approvalMode(tools: string[], autoApprove: boolean): string {
   return tools.some((t) => ['Edit', 'Write', 'Bash'].includes(t)) ? 'auto_edit' : 'default'
 }
 
+/** Gemini's read_file tool accepts image bytes; these paths name only staged selected images. */
+export function geminiImagePrompt(paths: string[]): string {
+  if (paths.length === 0) return ''
+  return `\n\nCall read_file on each attached image path before answering: ${JSON.stringify(paths)}. If read_file is unavailable or did not return image content, say clearly that you cannot view the images; do not infer their content from filenames.`
+}
+
 /**
  * Google Gemini CLI in headless mode. Signs in with your Google account (`gemini` once,
  * interactively) unless the provider has an API key. No resumable session: the transcript
@@ -20,18 +28,27 @@ function approvalMode(tools: string[], autoApprove: boolean): string {
  */
 export async function runGeminiTurn(params: RunTurnParams): Promise<TurnResult> {
   const { team, conversation, agent, provider, signal, handlers, note, notes, context } = params
+  const selected = turnImages(conversation, agent, params.resolveAttachment, params.inputMessageId)
+  if (selected.problem) return { text: imageReply(team, conversation, 'unreadable') }
+  if (selected.images.length > 0 && imageSupport(provider, agent.model, providerModels.inputModalities(agent.provider, provider, agent.model)) === 'unsupported') return { text: imageReply(team, conversation, 'unsupported') }
+  if (selected.images.length > 0 && !agent.tools.includes('Read')) return { text: imageReply(team, conversation, 'no-read-tool') }
+  let staged: ReturnType<typeof stageImages> | undefined
+  try { if (selected.images.length > 0) staged = stageImages(selected.images) }
+  catch { return { text: imageReply(team, conversation, 'unreadable') } }
   const started = Date.now()
   const cwd = turnCwd(params)
   // Read-only steps never auto-approve edits, but the Gemini CLI offers no sandbox Synodica can
   // rely on here, so the workflow does not count a Gemini turn as read-only (enforcesReadOnly).
   const mode = params.readOnly ? 'default' : approvalMode(agent.tools, mayBypass(params))
-  const args = ['--output-format', 'json', ...(agent.model && agent.model !== 'default' ? ['-m', agent.model] : []), '--approval-mode', mode]
-  const stdin = `<system>\n${buildSystemPrompt(team, conversation, agent, '', notes ?? '', context ?? '')}\n</system>\n\n${buildTurnPrompt(team, conversation, agent, false, note)}`
+  const args = ['--output-format', 'json', ...(agent.model && agent.model !== 'default' ? ['-m', agent.model] : []), '--approval-mode', mode, ...(staged ? ['--include-directories', staged.directory] : [])]
+  const stdin = `<system>\n${buildSystemPrompt(team, conversation, agent, '', notes ?? '', context ?? '')}\n</system>\n\n${buildTurnPrompt(team, conversation, agent, false, note, params.inputMessageId)}${geminiImagePrompt(staged?.paths ?? [])}`
 
   const env: NodeJS.ProcessEnv = { ...process.env, NO_COLOR: '1' }
   if (provider.apiKey) env.GEMINI_API_KEY = provider.apiKey
 
-  const run = await runCli('gemini', args, { cwd, env, stdin, signal })
+  let run: Awaited<ReturnType<typeof runCli>>
+  try { run = await runCli('gemini', args, { cwd, env, stdin, signal }) }
+  finally { staged?.cleanup() }
   const usage = emptyUsage(agent.model)
   usage.durationMs = Date.now() - started
   if (run.aborted) return { text: '', error: 'Stopped.', usage }
@@ -53,6 +70,7 @@ export async function runGeminiTurn(params: RunTurnParams): Promise<TurnResult> 
   }
   if (parsed.error) {
     const msg = typeof parsed.error === 'string' ? parsed.error : (parsed.error.message ?? 'Gemini reported an error.')
+    if (selected.images.length > 0 && isImageUnsupportedError(msg)) return { text: imageReply(team, conversation, 'unsupported') }
     return { text: '', error: msg, usage }
   }
   for (const m of Object.values(parsed.stats?.models ?? {})) {

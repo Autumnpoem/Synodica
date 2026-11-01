@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { Attachment, Conversation, CorrectionMode, CorrectionRecord, Message, Team } from '../../../shared/types'
 import { uploadFile } from '../api'
-import { t } from '../i18n'
+import { getLocale, t } from '../i18n'
 import { conversationTitle, personFor } from '../people'
 import { Avatar } from './Avatar'
 
@@ -308,6 +308,7 @@ export function Composer({ team, conversation, busy, replyTo, onClearReply, onSe
           {uploading > 0 && <span className="compose-attachment muted">{t('composer.uploading')}</span>}
         </div>
       )}
+      {attachments.some((a) => a.mime.startsWith('image/')) && <p className="hint" style={{ margin: '4px 12px 8px', fontSize: 12 }}>{getLocale() === 'zh-CN' ? '图片会交给本轮参与回复的模型处理；不支持看图的连接会明确提示。' : 'Images are sent to the models replying in this round. A connection that cannot read images will say so.'}</p>}
       {error && <div className="form-error">{error}</div>}
       {correctionLine && (
         <div className={`correction-status ${correctionLine.cls}`} role="status" aria-live="polite">
