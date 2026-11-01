@@ -2,13 +2,13 @@
 
 [简体中文](../zh-CN/快速开始.md)
 
-Synodica is a shared workspace for reusable AI personas, group conversations and project work. This guide covers version 0.5.3 desktop packages and the source workflow. It does not configure an account or make a model call for you.
+Synodica is a shared workspace for reusable AI personas, group conversations and project work. This guide covers version 0.5.4 desktop packages and the source workflow. It does not configure an account or make a model call for you.
 
 Choose **Light**, **Dark** or **System** in the appearance setting. The quota dock and its floating desktop window follow the office's appearance preference when opened from the same office origin.
 
 ## Install the desktop app
 
-Use the package for your computer: **Apple silicon Mac**: `Synodica-0.5.3-mac-arm64.dmg`; **64-bit Windows**: `Synodica-0.5.3-win-x64.zip`. Download them from the project's GitHub Releases page when listed. On Mac, open the DMG and drag Synodica to Applications. On Windows, extract the ZIP and run `Synodica.exe`; keep the extracted folder together.
+Use the package for your computer: **Apple silicon Mac**: `Synodica-0.5.4-mac-arm64.dmg`; **64-bit Windows**: `Synodica-0.5.4-win-x64.zip`. Download them from the project's GitHub Releases page when listed. On Mac, open the DMG and drag Synodica to Applications. On Windows, extract the ZIP and run `Synodica.exe`; keep the extracted folder together.
 
 These builds are unsigned; the Mac build is also not notarized. Your operating system may warn you or refuse to open it. Only continue if you trust the source and have checked the release; do not disable or bypass the operating system's security protections. Windows package contents were checked, but Windows hardware operation has not yet been tested. This release targets Apple silicon, not Intel Macs. Windows does not discover a Codex CLI bundled inside ChatGPT/Codex Desktop.
 
@@ -117,3 +117,7 @@ On macOS, Synodica uses `codex` from `PATH` first; if it is unavailable there, i
 An optional Claude Code / Anthropic-compatible gateway can be configured as a separate provider. Choose x-api-key or Bearer authentication, then enter the gateway root, its own credential and exact model IDs. Changing the endpoint origin requires a fresh credential; saved official keys and OAuth tokens are not forwarded. Gateway setup does not modify global Claude settings or sign-ins. Settings also include completed Chinese localization and layout repairs.
 
 These describe available configuration and routing behavior; this guide does not claim that a real gateway, account or model call was verified. See the [gateway guide](../zh-CN/subscriptions/07-Claude中转与Antigravity.md). Google subscription login uses Gemini CLI's official browser flow; Google AI Studio API is a separate no-CLI option with separate billing. Kimi Code membership uses a Code Console API key; Kimi CLI's `/login` OAuth flow is not imported by Synodica.
+
+### Keyboard input in 0.5.4
+
+Enter used to confirm an IME candidate or English text no longer sends, interrupts or selects an @ suggestion. After confirmation, a separate Enter sends as before; Shift+Enter inserts a newline.

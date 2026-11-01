@@ -1,6 +1,22 @@
 # Synodica 更新记录 / Changelog
 
-按版本记录用户可见的变化。当前项目版本为 **0.5.3**；安装文件与校验值以 [GitHub Releases](https://github.com/Autumnpoem/Synodica/releases) 页面为准。
+按版本记录用户可见的变化。当前项目版本为 **0.5.4**；安装文件与校验值以 [GitHub Releases](https://github.com/Autumnpoem/Synodica/releases) 页面为准。
+
+## 0.5.4 · 2026-11-02
+
+### 中文
+
+- 修复输入法中按回车确认英文或候选词时误发送消息的问题；团队忙碌时也不会误触发纠正和中断。
+- 输入法组成期间，回车、Tab 和方向键留给输入法，不触发 @ 建议选择。确认后普通回车发送、Shift+回车换行、非输入法状态的 @ 补全保持原行为。
+
+### English
+
+- Prevent Enter used to confirm IME English text or a candidate from sending a message, including accidental corrections while the team is busy.
+- Leave composition-time Enter, Tab and arrow keys to the IME instead of @ autocomplete. Ordinary Enter to send, Shift+Enter for a newline and non-composing autocomplete keep their existing behavior.
+
+### Verification reported for this version
+
+48 client checks, TypeScript checks and build passed. Four regression cases execute the actual Composer key handler with composing and native 229 events; browser checks cover ordinary Enter to send and Shift+Enter for a newline. These are simulated IME-event regressions, not an end-to-end OS input-method test.
 
 ## 0.5.3 · 2026-11-02
 

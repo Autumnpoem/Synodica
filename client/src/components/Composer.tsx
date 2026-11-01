@@ -215,6 +215,7 @@ export function Composer({ team, conversation, busy, replyTo, onClearReply, onSe
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.nativeEvent.isComposing || e.nativeEvent.keyCode === 229) return
     if (options.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault()

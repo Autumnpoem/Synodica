@@ -6,13 +6,13 @@
 
 <p align="center"><a href="README.md">English</a> · <a href="docs/zh-CN/快速开始.md">快速开始</a> · <a href="docs/zh-CN/subscriptions/README.md">服务商与订阅配置</a></p>
 
-**当前版本：0.5.3** · [按版本查看更新记录](CHANGELOG.md)
+**当前版本：0.5.4** · [按版本查看更新记录](CHANGELOG.md)
 
 星议把多个模型服务商与可复用的 AI 角色放进同一个工作空间。每个角色可以使用自己的服务商、模型和工作方式；角色可以在私聊、群聊或项目中协作。目标是让问题到评审结果的过程有迹可循，并由你决定后续行动。
 
 ## 几步开始
 
-1. 发布页列出安装包后，可下载适合你电脑的 0.5.3 版本；也可按[快速开始](docs/zh-CN/快速开始.md)从源码运行。
+1. 发布页列出安装包后，可下载适合你电脑的 0.5.4 版本；也可按[快速开始](docs/zh-CN/快速开始.md)从源码运行。
 2. 打开 **设置 → 服务商**，配置要使用的账号或 API Key。订阅登录由运行后端的官方 CLI 使用；网页登录不会自动变成 API 权限。
 3. 打开 **设置 → 团队 → 默认团队**，选择一个起始模板，检查并调整服务商、模型默认值后保存。
 4. 先与一个角色私聊；需要多角色协作时，再创建群聊或项目。
@@ -49,7 +49,7 @@
 
 ## 安装与指南
 
-[快速开始](docs/zh-CN/快速开始.md)介绍 `Synodica-0.5.3-mac-arm64.dmg`、`Synodica-0.5.3-win-x64.zip`、源码安装命令、账号配置、手机访问和常见问题。桌面包尚未签名；macOS 包未经公证，Windows 真机测试仍待完成。请勿为安装而关闭操作系统安全保护。
+[快速开始](docs/zh-CN/快速开始.md)介绍 `Synodica-0.5.4-mac-arm64.dmg`、`Synodica-0.5.4-win-x64.zip`、源码安装命令、账号配置、手机访问和常见问题。桌面包尚未签名；macOS 包未经公证，Windows 真机测试仍待完成。请勿为安装而关闭操作系统安全保护。
 
 - [服务商与订阅接入](docs/zh-CN/subscriptions/README.md)
 - [Ubuntu 共享办公室部署](docs/zh-CN/Ubuntu部署.md)
@@ -60,7 +60,7 @@
 
 ## 当前版本与已知限制
 
-项目版本为 **0.5.3**。本版改进群聊多轮讨论与定向纠正，详见[更新记录](CHANGELOG.md)。macOS 上若 `PATH` 中没有 `codex`，Codex 可发现已安装的 ChatGPT 或 Codex 桌面应用所附带的 CLI；Windows 不支持桌面应用内 CLI 探测。Claude Code／Anthropic 兼容网关可作为独立服务商配置，并明确填写端点和凭据；这些配置能力不代表已验证真实网关或账号模型调用。Codex Desktop 的 Computer Use 尚未集成；模型目录也不证明账号有权调用。其他限制包括：Gemini Google 订阅暂无实时额度报告；dsh-pet 独立聊天服务尚未接入；桌面安装包未签名；Windows 尚未真机验收。
+项目版本为 **0.5.4**。本版修复输入法确认英文或选词时误发送、误纠正消息，详见[更新记录](CHANGELOG.md)。macOS 上若 `PATH` 中没有 `codex`，Codex 可发现已安装的 ChatGPT 或 Codex 桌面应用所附带的 CLI；Windows 不支持桌面应用内 CLI 探测。Claude Code／Anthropic 兼容网关可作为独立服务商配置，并明确填写端点和凭据；这些配置能力不代表已验证真实网关或账号模型调用。Codex Desktop 的 Computer Use 尚未集成；模型目录也不证明账号有权调用。其他限制包括：Gemini Google 订阅暂无实时额度报告；dsh-pet 独立聊天服务尚未接入；桌面安装包未签名；Windows 尚未真机验收。
 
 ## 致谢与许可
 
