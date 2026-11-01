@@ -21,7 +21,15 @@ export const modelHint = (locale: Locale, m: { id: string; hint: string }) => ca
 export const rateLimitLabel = (locale: Locale, type: string, label: string) => catalogText(locale, `catalog.rate.${type}`, label)
 export const apiKeyHint = (locale: Locale, p: { id: string; keyHint: string }) => catalogText(locale, `catalog.keyHint.${p.id}`, p.keyHint)
 export const apiPresetLabel = (locale: Locale, p: { id: string; label: string }) => catalogText(locale, `catalog.apiPreset.${p.id}`, p.label)
-export const providerLabel = (locale: Locale, provider: { label: string; baseUrl?: string }) => {
+export const providerLabel = (locale: Locale, provider: { kind: ProviderKind; label: string; baseUrl?: string }) => {
+  const defaultLabel = provider.kind === 'claude' && provider.label === 'Claude (subscription)'
+    ? 'claudeSubscription'
+    : provider.kind === 'codex' && provider.label === 'Codex (ChatGPT subscription)'
+      ? 'codexSubscription'
+      : provider.kind === 'gemini' && provider.label === 'Gemini (Google account)'
+        ? 'geminiAccount'
+        : undefined
+  if (defaultLabel) return catalogText(locale, `catalog.defaultProvider.${defaultLabel}`, provider.label)
   const preset = API_PRESETS.find((p) => p.baseUrl === provider.baseUrl && p.label === provider.label)
   return preset ? apiPresetLabel(locale, preset) : provider.label
 }

@@ -22,6 +22,8 @@ export interface ProviderDef {
   label: string
   /** API key. For `claude` it switches from subscription login to API billing. */
   apiKey?: string
+  /** Claude gateways: select x-api-key (default) or Authorization: Bearer. Stored secret stays in apiKey. */
+  authMode?: 'api-key' | 'auth-token'
   /** Base URL for `openai` providers (e.g. https://api.moonshot.ai/v1). */
   baseUrl?: string
   /** Model ids offered in the picker. Free text is always allowed. */

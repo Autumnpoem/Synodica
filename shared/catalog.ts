@@ -18,8 +18,8 @@ export const MODEL_SUGGESTIONS: Record<ProviderKind, string[]> = {
 
 export const PROVIDER_KINDS: { id: ProviderKind; label: string; hint: string }[] = [
   { id: 'claude', label: 'Claude Code', hint: 'Anthropic. Uses your Claude subscription login, or an API key if you add one. Full tools + MCP.' },
-  { id: 'codex', label: 'Codex CLI', hint: 'OpenAI. Uses your ChatGPT / Codex subscription login (`codex login`). Full coding tools.' },
-  { id: 'gemini', label: 'Gemini CLI', hint: 'Google. Signs in with your Google account, the same one Antigravity uses. Full coding tools.' },
+  { id: 'codex', label: 'Codex CLI', hint: 'OpenAI. Uses `codex` from PATH, or the CLI bundled with the ChatGPT / Codex desktop app on macOS. Sign in with your ChatGPT account (`codex login`). Full coding tools.' },
+  { id: 'gemini', label: 'Gemini CLI', hint: 'Google. Signs in through Gemini CLI with your Google account. Antigravity credentials are not reused. Full coding tools.' },
   { id: 'openai', label: 'API (OpenAI-compatible)', hint: 'Any chat API: Kimi, OpenRouter, DeepSeek, Groq, xAI Grok, Ollama… Chat plus built-in file/shell tools.' },
 ]
 

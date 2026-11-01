@@ -1,9 +1,11 @@
+import { claudeEndpointOrigin } from '../../../shared/provider-origin'
 import { useEffect, useState } from 'react'
 import { API_PRESETS, providerEndpointKey, PROVIDER_KINDS } from '../../../shared/catalog'
 import { apiPresetLabel, capabilityLine, providerKindHint, providerLabel } from '../../../shared/catalog-i18n'
 import type { ProviderDef, ProviderStatus, Team } from '../../../shared/types'
 import { deleteProvider, providerStatuses, putProvider } from '../api'
 import { t, useLocale } from '../i18n'
+import { connectionText } from '../providerConnection'
 
 interface ProvidersProps {
   team: Team
@@ -13,6 +15,7 @@ const BUILT_IN = ['claude', 'codex', 'gemini']
 
 export function Providers({ team }: ProvidersProps) {
   const locale = useLocale()
+  const words = connectionText(locale)
   const [statuses, setStatuses] = useState<ProviderStatus[]>([])
   const [checking, setChecking] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,13 +57,23 @@ export function Providers({ team }: ProvidersProps) {
             {checking ? t('providers.checking') : t('providers.recheck')}
           </button>
           <button type="button" className="btn btn-primary" onClick={() => setAdding(true)}>
-            {t('providers.addApi')}
+            {words.add}
           </button>
         </div>
       </div>
       <p className="lead">{t('providers.lead')}</p>
       {error && <div className="form-error">{error}</div>}
 
+      <details className="card provider-guide">
+        <summary style={{ padding: '16px 20px', fontWeight: 700 }}>{words.title}</summary>
+        <div style={{ padding: '0 20px 20px' }}>
+          <h3>{words.codexTitle}</h3><p>{words.codex}</p>
+          <h3>{words.claudeTitle}</h3><p>{words.claude}</p>
+          <h3>{words.googleTitle}</h3><p>{words.google}</p>
+          <h3>{words.kimiTitle}</h3><p>{words.kimi}</p>
+          <a href="https://www.kimi.com/code/console" target="_blank" rel="noreferrer">{words.codeConsole}</a>
+        </div>
+      </details>
       <h4>{t('providers.subscriptions')}</h4>
       <div className="card">
         {BUILT_IN.map((id) => {
@@ -77,13 +90,14 @@ export function Providers({ team }: ProvidersProps) {
                   {providerLabel(locale, p)}
                   {p.apiKey && <span className="badge">{t('providers.apiKey')}</span>}
                 </div>
-                <div className="row-hint">{st ? (st.ok ? t('providers.statusOk') : t('providers.statusError', { detail: st.detail })) : kind ? providerKindHint(locale, kind) : ''}</div>
+                <div className="row-hint">{st ? (st.ok ? (st.kind === 'claude' || st.kind === 'gemini' ? words.engineReady : t('providers.statusOk')) : words.unavailable) : kind ? providerKindHint(locale, kind) : ''}</div>
+                {st && !st.ok && <details className="row-hint"><summary>{words.technical}</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{st.detail}</pre></details>}
                 <div className="row-hint">{capabilityLine(locale, p.kind)}</div>
                 <div className="row-hint">{users.length ? t('providers.usedBy', { names: users.join(', ') }) : t('providers.unused')}</div>
               </div>
               <div className="row-control">
                 <button type="button" className="btn" onClick={() => setEditing(id)}>
-                  {p.apiKey ? t('providers.editKey') : t('providers.addKey')}
+                  {words.configure}
                 </button>
               </div>
             </div>
@@ -114,10 +128,11 @@ export function Providers({ team }: ProvidersProps) {
                     {providerLabel(locale, p)} <span className="muted small">{id}</span>
                   </div>
                   <div className="row-hint">
-                    {p.baseUrl} · {st ? (st.ok ? t('providers.statusOk') : t('providers.statusError', { detail: st.detail })) : t('providers.checkingInline')}
+                    {p.baseUrl} · {st ? (st.ok ? (st.kind === 'claude' || st.kind === 'gemini' ? words.engineReady : t('providers.statusOk')) : words.unavailable) : t('providers.checkingInline')}
                     {!p.apiKey && t('providers.noKey')}
                   </div>
-                  <div className="row-hint">{capabilityLine(locale, p.kind)}</div>
+                  {st && !st.ok && <details className="row-hint"><summary>{words.technical}</summary><pre style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>{st.detail}</pre></details>}
+                <div className="row-hint">{capabilityLine(locale, p.kind)}</div>
                   <div className="row-hint">{users.length ? t('providers.usedBy', { names: users.join(', ') }) : t('providers.unused')}</div>
                 </div>
                 <div className="row-control">
@@ -141,9 +156,12 @@ export function Providers({ team }: ProvidersProps) {
 
 function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; onDone: () => void }) {
   const locale = useLocale()
+  const words = connectionText(locale)
   const existing = id ? team.providers[id] : undefined
   const builtIn = id !== null && BUILT_IN.includes(id)
   const [preset, setPreset] = useState<string>('')
+  const [kind, setKind] = useState(existing?.kind ?? 'openai')
+  const [authMode, setAuthMode] = useState<'api-key' | 'auth-token'>(existing?.authMode ?? 'api-key')
   const [pid, setPid] = useState(id ?? '')
   const [label, setLabel] = useState(existing?.label ?? '')
   const [baseUrl, setBaseUrl] = useState(existing?.baseUrl ?? '')
@@ -154,6 +172,15 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
 
   const applyPreset = (presetId: string) => {
     setPreset(presetId)
+    if (presetId === 'claude-gateway') {
+      setKind('claude'); setPid('claude-gateway'); setLabel(words.gateway); setBaseUrl(''); setModels(''); setAuthMode('auth-token'); setError(null)
+      return
+    }
+    if (presetId === 'google-ai-studio') {
+      setKind('openai'); setPid('google-ai-studio'); setLabel(words.googleApi); setBaseUrl('https://generativelanguage.googleapis.com/v1beta/openai'); setModels(''); setError(null)
+      return
+    }
+    setKind('openai')
     const p = API_PRESETS.find((x) => x.id === presetId)
     if (!p) return
     const endpoint = providerEndpointKey(p.baseUrl)
@@ -174,14 +201,15 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
     setError(null)
     try {
       const def: Partial<ProviderDef> = builtIn
-        ? { apiKey: apiKey.trim() || undefined, label: label.trim() || existing?.label }
-        : { kind: 'openai', label: label.trim() || pid, baseUrl: baseUrl.trim(), apiKey: apiKey.trim() || undefined, models: models.split(',').map((m) => m.trim()).filter(Boolean) }
+        ? { apiKey: apiKey.trim() || undefined, label: label.trim() || existing?.label, ...(kind === 'claude' ? { baseUrl: baseUrl.trim(), authMode } : {}) }
+        : { kind, ...(kind === 'claude' ? { authMode } : {}), label: label.trim() || pid, baseUrl: baseUrl.trim(), apiKey: apiKey.trim() || undefined, models: models.split(',').map((m) => m.trim()).filter(Boolean) }
       if (!builtIn && !/^[a-z0-9_-]+$/.test(pid)) throw new Error(t('providers.idInvalid'))
       if (!builtIn && !existing) {
         const endpoint = providerEndpointKey(baseUrl)
         const duplicate = Object.entries(team.providers).find(([providerId, provider]) => providerId === pid || providerEndpointKey(provider.baseUrl) === endpoint)
         if (duplicate) throw new Error(t('providers.alreadyConfigured', { label: duplicate[1].label }))
       }
+      if (kind === 'claude' && existing && claudeEndpointOrigin(baseUrl) !== claudeEndpointOrigin(existing.baseUrl) && (!apiKey.trim() || apiKey === '••••')) throw new Error(words.newCredential)
       await putProvider(pid, def)
       onDone()
     } catch (err) {
@@ -233,6 +261,8 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
                 <span>{t('providers.preset')}</span>
                 <select value={preset} onChange={(e) => applyPreset(e.target.value)}>
                   <option value="">{t('providers.custom')}</option>
+                  <option value="claude-gateway">{words.gateway}</option>
+                  <option value="google-ai-studio">{words.googleApi}</option>
                   {API_PRESETS.map((p) => (
                     <option key={p.id} value={p.id}>
                       {apiPresetLabel(locale, p)}
@@ -241,6 +271,8 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
                 </select>
               </label>
             )}
+            {!existing && <label className="field"><span>{words.protocol}</span><select value={kind} onChange={(e) => setKind(e.target.value as 'claude' | 'openai')}><option value="openai">{words.openai}</option><option value="claude">{words.anthropic}</option></select></label>}
+            {kind === 'claude' && <p className="hint">{words.gatewayHint}</p>}
             {configuredPreset?.id.startsWith('kimi-code-') && <p className="hint">{t('providers.regionHint')}</p>}
             <label className="field">
               <span>{t('providers.id')}</span>
@@ -251,9 +283,9 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
               <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t('providers.labelPh')} />
             </label>
             <label className="field">
-              <span>{t('providers.baseUrl')}</span>
+              <span>{kind === 'claude' ? words.rootUrl : t('providers.baseUrl')}</span>
               <input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.moonshot.ai/v1" />
-              <small>{t('providers.baseUrlHint')}</small>
+              <small>{kind === 'claude' ? words.rootHint : t('providers.baseUrlHint')}</small>
             </label>
             <label className="field">
               <span>{t('providers.apiKey')}</span>
@@ -266,6 +298,10 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
             </label>
           </>
         )}
+        {kind === 'claude' && <>
+          {builtIn && <label className="field"><span>{words.rootUrl}</span><input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://api.anthropic.com" /><small>{words.rootHint}</small></label>}
+          <label className="field"><span>{words.auth}</span><select value={authMode} onChange={(e) => setAuthMode(e.target.value as 'api-key' | 'auth-token')}><option value="api-key">{words.apiKey}</option><option value="auth-token">{words.bearer}</option></select></label>
+        </>}
         <div className="actions">
           {builtIn && existing?.apiKey && (
             <button type="button" className="btn btn-danger-ghost" onClick={() => void clearKey()} disabled={busy}>
@@ -275,7 +311,7 @@ function ProviderSheet({ team, id, onDone }: { team: Team; id: string | null; on
           <button type="button" className="btn" onClick={onDone}>
             {t('common.cancel')}
           </button>
-          <button type="button" className="btn btn-primary" disabled={busy || (!builtIn && (!pid.trim() || !baseUrl.trim()))} onClick={() => void save()}>
+          <button type="button" className="btn btn-primary" disabled={busy || (!builtIn && (!pid.trim() || !baseUrl.trim())) || (kind === 'claude' && Boolean(baseUrl.trim()) && !apiKey.trim())} onClick={() => void save()}>
             {busy ? t('common.saving') : t('common.save')}
           </button>
         </div>

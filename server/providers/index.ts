@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module'
 import { cliVersion, runCli } from './cli.js'
 import { runClaudeTurn } from './claude.js'
 import { runCodexTurn } from './codex.js'
@@ -29,8 +30,9 @@ async function probe(id: string, def: ProviderDef): Promise<ProviderStatus> {
   try {
     switch (def.kind) {
       case 'claude': {
-        const v = await cliVersion('claude')
-        if (!v) return { ...base, ok: false, detail: 'Claude Code CLI not found. Install: npm i -g @anthropic-ai/claude-code, then `claude` to sign in.' }
+        const bundled = createRequire(import.meta.url).resolve(`@anthropic-ai/claude-agent-sdk-${process.platform}-${process.arch}/${process.platform === 'win32' ? 'claude.exe' : 'claude'}`)
+        const v = await cliVersion(bundled)
+        if (!v) return { ...base, ok: false, detail: 'Bundled Claude Code engine is unavailable. Reinstall the application; use Claude Code to sign in for an official subscription.' }
         return { ...base, ok: true, detail: def.apiKey ? `${v} · API key (billed per token)` : `${v} · subscription login` }
       }
       case 'codex': {

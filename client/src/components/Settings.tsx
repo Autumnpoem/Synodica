@@ -6,7 +6,8 @@ import { formatCost, formatRelative, formatTokens, modelLabel } from '../format'
 import { MARKETPLACE, type MarketplaceItem } from '../marketplace'
 import { conversationTitle, personFor } from '../people'
 import { CHINESE_REPLY_LANGUAGE, type MessageKey } from '../../../shared/i18n'
-import { t } from '../i18n'
+import { catalogText, effortLabel, providerLabel, rateLimitLabel } from '../../../shared/catalog-i18n'
+import { getLocale, t } from '../i18n'
 import { Avatar } from './Avatar'
 import { AvatarEditor } from './AvatarEditor'
 import { OfficeConnectionPanel } from '../QuotaApp'
@@ -89,6 +90,24 @@ function Row({ title, hint, children }: { title: string; hint?: string; children
       <div className="row-control">{children}</div>
     </div>
   )
+}
+
+function relativeLabel(ts: number): string {
+  if (getLocale() !== 'zh-CN') return formatRelative(ts)
+  const diff = ts - Date.now()
+  const abs = Math.abs(diff)
+  const unit = abs < 3_600_000 ? ['minutes', 60_000] as const : abs < 86_400_000 ? ['hours', 3_600_000] as const : ['days', 86_400_000] as const
+  const duration = t(`time.${unit[0]}` as 'time.minutes', { n: Math.round(abs / unit[1]) })
+  return t(diff > 0 ? 'time.in' : 'time.ago', { duration })
+}
+
+function localizedMarketItem(id: string, field: 'title' | 'description' | 'argHint', fallback: string): string {
+  return catalogText(getLocale(), `settings.market.item.${id}.${field}`, fallback)
+}
+
+function localizedMarketSecret(key: string, fallback: string): string {
+  const id = ({ GITHUB_PERSONAL_ACCESS_TOKEN: 'github', SUPABASE_ACCESS_TOKEN: 'supabase', SLACK_BOT_TOKEN: 'slackToken', SLACK_TEAM_ID: 'slackTeam', NOTION_TOKEN: 'notion', BRAVE_API_KEY: 'brave' } as Record<string, string>)[key] ?? key
+  return catalogText(getLocale(), `settings.market.secret.${id}`, fallback)
 }
 
 /* ---------- General ---------- */
@@ -247,7 +266,7 @@ function HelperPicker({ team, value, offMode, offLabel, onChange }: { team: Team
         <option value="__off">{offLabel}</option>
         {Object.entries(team.providers).map(([id, d]) => (
           <option key={id} value={id}>
-            {d.label}
+            {providerLabel(getLocale(), d)}
           </option>
         ))}
       </select>
@@ -267,6 +286,7 @@ function TeamSection({ team, usage, onEditAgent, onAddTeam }: SettingsProps) {
         {team.agents.map((a) => {
           const p = personFor(team, a.id)
           const u = usage.byAgent[a.id]
+          const provider = team.providers[a.provider]
           return (
             <div key={a.id} className="row row-button" onClick={() => onEditAgent(a.id)} role="button" tabIndex={0}>
               <Avatar person={p} size={36} />
@@ -276,7 +296,7 @@ function TeamSection({ team, usage, onEditAgent, onAddTeam }: SettingsProps) {
                   {a.department && <span className="badge">{a.department}</span>}
                 </div>
                 <div className="row-hint">
-                  {team.providers[a.provider]?.label ?? a.provider} · {modelLabel(a.model)} · {t('team.effort', { effort: a.effort })} · {a.tools.length ? a.tools.join(', ') : t('team.chatOnly')}
+                  {provider ? providerLabel(getLocale(), provider) : a.provider} · {modelLabel(a.model)} · {t('team.effort', { effort: effortLabel(getLocale(), { id: a.effort, label: a.effort }) })} · {a.tools.length ? a.tools.join(', ') : t('team.chatOnly')}
                   {a.muted ? ` · ${t('nav.muted')}` : ''}
                   {a.mcpServers.length > 0 && ` · MCP: ${a.mcpServers.join(', ')}`}
                 </div>
@@ -314,7 +334,7 @@ function Marketplace({ team }: SettingsProps) {
   const [error, setError] = useState<string | null>(null)
   const installed = Object.keys(team.mcpServers)
   const categories = ['All', ...new Set(MARKETPLACE.map((m) => m.category))]
-  const items = MARKETPLACE.filter((m) => (category === 'All' || m.category === category) && `${m.name} ${m.description}`.toLowerCase().includes(q.toLowerCase()))
+  const items = MARKETPLACE.filter((m) => (category === 'All' || m.category === category) && `${m.name} ${localizedMarketItem(m.id, 'description', m.description)}`.toLowerCase().includes(q.toLowerCase()))
 
   const remove = async (name: string) => {
     setError(null)
@@ -328,25 +348,23 @@ function Marketplace({ team }: SettingsProps) {
   return (
     <>
       <div className="marketplace-head">
-        <h1>Marketplace</h1>
+        <h1>{t('settings.market.title')}</h1>
         <button type="button" className="btn" onClick={() => setCustom(true)}>
-          + Custom MCP server
+          {t('settings.market.custom')}
         </button>
       </div>
-      <p className="lead">
-        MCP servers give employees new abilities: GitHub, a browser, databases, Notion… They run locally on this computer through Claude Code. After adding one, enable it per employee in their profile.
-      </p>
+      <p className="lead">{t('settings.market.lead')}</p>
       {installed.length > 0 && (
         <>
-          <h4>{installed.length} installed</h4>
+          <h4>{t('settings.market.installed', { count: installed.length })}</h4>
           <Card>
             {installed.map((name) => {
               const def = team.mcpServers[name]
               const users = team.agents.filter((a) => a.mcpServers.includes(name)).map((a) => a.name)
               return (
-                <Row key={name} title={name} hint={`${def?.type === 'stdio' ? `${def.command} ${(def.args ?? []).join(' ')}` : def?.url ?? ''}${users.length ? ` · used by ${users.join(', ')}` : ' · not enabled for anyone yet'}`}>
+                <Row key={name} title={name} hint={`${def?.type === 'stdio' ? `${def.command} ${(def.args ?? []).join(' ')}` : def?.url ?? ''}${users.length ? ` · ${t('settings.market.usedBy', { names: users.join(', ') })}` : ` · ${t('settings.market.notEnabled')}`}`}>
                   <button type="button" className="btn btn-danger-ghost" onClick={() => void remove(name)}>
-                    Remove
+                    {t('common.delete')}
                   </button>
                 </Row>
               )
@@ -356,12 +374,12 @@ function Marketplace({ team }: SettingsProps) {
       )}
       {error && <div className="form-error">{error}</div>}
       <label className="search search-wide">
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search servers" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('settings.market.search')} />
       </label>
       <div className="chips">
         {categories.map((c) => (
           <button key={c} type="button" className={`chip${category === c ? ' is-active' : ''}`} onClick={() => setCategory(c)}>
-            {c}
+            {c === 'All' ? t('settings.market.all') : t(`settings.market.category.${c.toLowerCase()}` as MessageKey)}
           </button>
         ))}
       </div>
@@ -370,14 +388,14 @@ function Marketplace({ team }: SettingsProps) {
           <div key={m.id} className="market-item">
             <span className="market-icon">{m.icon}</span>
             <div className="market-text">
-              <div className="row-title">{m.name}</div>
-              <div className="row-hint">{m.description}</div>
+              <div className="row-title">{localizedMarketItem(m.id, 'title', m.name)}</div>
+              <div className="row-hint">{localizedMarketItem(m.id, 'description', m.description)}</div>
             </div>
             {installed.includes(m.id) ? (
-              <span className="muted">Added</span>
+              <span className="muted">{t('settings.market.added')}</span>
             ) : (
               <button type="button" className="btn btn-pill" onClick={() => setAdding(m)}>
-                Add
+                {t('settings.market.add')}
               </button>
             )}
           </div>
@@ -409,7 +427,7 @@ function AddServer({ item, onDone }: { item: MarketplaceItem | null; onDone: () 
         const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/.exec(line)
         if (m && m[1] && m[2] !== undefined) env[m[1]] = m[2]
       }
-      for (const s of item?.secrets ?? []) if (!env[s.key]) throw new Error(`${s.label} is required.`)
+      for (const s of item?.secrets ?? []) if (!env[s.key]) throw new Error(t('settings.market.required', { field: localizedMarketSecret(s.key, s.label) }))
       const def: McpServerDef =
         type === 'stdio'
           ? { type: 'stdio', command: command.trim(), ...(args.trim() ? { args: args.trim().split(/\s+/) } : {}), ...(Object.keys(env).length ? { env } : {}) }
@@ -425,56 +443,56 @@ function AddServer({ item, onDone }: { item: MarketplaceItem | null; onDone: () 
   return (
     <div className="modal-backdrop nested" onMouseDown={(e) => e.target === e.currentTarget && onDone()}>
       <div className="modal sheet" role="dialog">
-        <h2>{item ? `Add ${item.name}` : 'Custom MCP server'}</h2>
+        <h2>{item ? t('settings.market.addNamed', { name: localizedMarketItem(item.id, 'title', item.name) }) : t('settings.market.custom')}</h2>
         {error && <div className="form-error">{error}</div>}
         <label className="field">
-          <span>Name</span>
+          <span>{t('settings.market.name')}</span>
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder="github" disabled={item !== null} />
         </label>
         {!item && (
           <label className="field">
-            <span>Transport</span>
+            <span>{t('settings.market.transport')}</span>
             <select value={type} onChange={(e) => setType(e.target.value as McpServerDef['type'])}>
-              <option value="stdio">Local command (stdio)</option>
-              <option value="http">Remote HTTP</option>
-              <option value="sse">Remote SSE</option>
+              <option value="stdio">{t('settings.market.transportStdio')}</option>
+              <option value="http">{t('settings.market.transportHttp')}</option>
+              <option value="sse">{t('settings.market.transportSse')}</option>
             </select>
           </label>
         )}
         {type === 'stdio' ? (
           <>
             <label className="field">
-              <span>Command</span>
+              <span>{t('settings.market.command')}</span>
               <input value={command} onChange={(e) => setCommand(e.target.value)} />
             </label>
             <label className="field">
-              <span>Arguments</span>
+              <span>{t('settings.market.arguments')}</span>
               <input value={args} onChange={(e) => setArgs(e.target.value)} />
-              {item?.argHint && <small>{item.argHint}</small>}
+              {item?.argHint && <small>{localizedMarketItem(item.id, 'argHint', item.argHint)}</small>}
             </label>
           </>
         ) : (
           <label className="field">
-            <span>URL</span>
+            <span>{t('settings.market.url')}</span>
             <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" />
           </label>
         )}
         {(item?.secrets ?? []).map((s) => (
           <label key={s.key} className="field">
-            <span>{s.label}</span>
+            <span>{localizedMarketSecret(s.key, s.label)}</span>
             <input type="password" value={secrets[s.key] ?? ''} onChange={(e) => setSecrets({ ...secrets, [s.key]: e.target.value })} placeholder={s.key} />
           </label>
         ))}
         <label className="field">
-          <span>{type === 'stdio' ? 'Extra environment variables' : 'Extra headers'} (optional)</span>
+          <span>{type === 'stdio' ? t('settings.market.extraEnv') : t('settings.market.extraHeaders')} ({t('common.optional')})</span>
           <textarea rows={2} value={envText} onChange={(e) => setEnvText(e.target.value)} placeholder={'KEY=value\nOTHER=value'} />
         </label>
         <div className="actions">
           <button type="button" className="btn" onClick={onDone}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="button" className="btn btn-primary" disabled={busy || !name.trim()} onClick={() => void save()}>
-            {busy ? 'Adding…' : 'Add server'}
+            {busy ? t('settings.market.adding') : t('settings.market.addServer')}
           </button>
         </div>
       </div>
@@ -498,44 +516,44 @@ function totalsRow(t: UsageTotals) {
 }
 
 function Usage({ team, conversations, usage }: SettingsProps) {
-  const t = usage.total
-  const allIn = t.inputTokens + t.cacheReadTokens + t.cacheCreationTokens
+  const total = usage.total
+  const allIn = total.inputTokens + total.cacheReadTokens + total.cacheCreationTokens
   const agents = [...team.agents].sort((a, b) => (usage.byAgent[b.id]?.costUsd ?? 0) - (usage.byAgent[a.id]?.costUsd ?? 0))
   const convs = [...conversations].filter((c) => usage.byConversation[c.id]).sort((a, b) => (usage.byConversation[b.id]?.costUsd ?? 0) - (usage.byConversation[a.id]?.costUsd ?? 0))
   return (
     <>
-      <h1>Usage</h1>
-      <p className="lead">Everything runs on your Claude subscription, so the dollar figures are what the same tokens would cost on the API, not a bill. Use them to compare employees and conversations.</p>
+      <h1>{t('settings.nav.usage')}</h1>
+      <p className="lead">{t('usageLocal.lead')}</p>
       <div className="stats">
         <div className="stat">
           <div className="stat-value">{formatTokens(allIn)}</div>
-          <div className="stat-label">input tokens</div>
+          <div className="stat-label">{t('usageLocal.inputTokens')}</div>
         </div>
         <div className="stat">
-          <div className="stat-value">{formatTokens(t.outputTokens)}</div>
-          <div className="stat-label">output tokens</div>
+          <div className="stat-value">{formatTokens(total.outputTokens)}</div>
+          <div className="stat-label">{t('usageLocal.outputTokens')}</div>
         </div>
         <div className="stat">
-          <div className="stat-value">{t.messages}</div>
-          <div className="stat-label">employee replies</div>
+          <div className="stat-value">{total.messages}</div>
+          <div className="stat-label">{t('usageLocal.employeeReplies')}</div>
         </div>
         <div className="stat">
-          <div className="stat-value">{formatCost(t.costUsd)}</div>
-          <div className="stat-label">API-equivalent</div>
+          <div className="stat-value">{formatCost(total.costUsd)}</div>
+          <div className="stat-label">{t('usageLocal.apiEquivalent')}</div>
         </div>
       </div>
-      <h4>By employee</h4>
+      <h4>{t('usageLocal.byEmployee')}</h4>
       <Card>
         <table className="table">
           <thead>
             <tr>
-              <th>Employee</th>
-              <th>Replies</th>
-              <th>Input</th>
-              <th>Cache read</th>
-              <th>Cache write</th>
-              <th>Output</th>
-              <th>Cost</th>
+              <th>{t('usageLocal.employee')}</th>
+              <th>{t('usageLocal.replies')}</th>
+              <th>{t('usageLocal.input')}</th>
+              <th>{t('usageLocal.cacheRead')}</th>
+              <th>{t('usageLocal.cacheWrite')}</th>
+              <th>{t('usageLocal.output')}</th>
+              <th>{t('usageLocal.cost')}</th>
             </tr>
           </thead>
           <tbody>
@@ -551,7 +569,7 @@ function Usage({ team, conversations, usage }: SettingsProps) {
                       <span className="muted"> · {modelLabel(a.model)}</span>
                     </span>
                   </td>
-                  {u ? totalsRow(u) : <td colSpan={6} className="muted">no usage yet</td>}
+                  {u ? totalsRow(u) : <td colSpan={6} className="muted">{t('usageLocal.noUsage')}</td>}
                 </tr>
               )
             })}
@@ -560,18 +578,18 @@ function Usage({ team, conversations, usage }: SettingsProps) {
       </Card>
       {convs.length > 0 && (
         <>
-          <h4>By conversation</h4>
+          <h4>{t('usageLocal.byConversation')}</h4>
           <Card>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Conversation</th>
-                  <th>Replies</th>
-                  <th>Input</th>
-                  <th>Cache read</th>
-                  <th>Cache write</th>
-                  <th>Output</th>
-                  <th>Cost</th>
+                  <th>{t('usageLocal.conversation')}</th>
+                  <th>{t('usageLocal.replies')}</th>
+                  <th>{t('usageLocal.input')}</th>
+                  <th>{t('usageLocal.cacheRead')}</th>
+                  <th>{t('usageLocal.cacheWrite')}</th>
+                  <th>{t('usageLocal.output')}</th>
+                  <th>{t('usageLocal.cost')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -579,7 +597,7 @@ function Usage({ team, conversations, usage }: SettingsProps) {
                   const u = usage.byConversation[c.id]
                   return (
                     <tr key={c.id}>
-                      <td className="cell-clip">{c.kind === 'group' ? `Group · ${conversationTitle(team, c)}` : `DM · ${conversationTitle(team, c)}`}</td>
+                      <td className="cell-clip">{c.kind === 'group' ? `${t('usageLocal.group')} · ${conversationTitle(team, c)}` : `${t('usageLocal.directMessage')} · ${conversationTitle(team, c)}`}</td>
                       {u && totalsRow(u)}
                     </tr>
                   )
@@ -591,18 +609,18 @@ function Usage({ team, conversations, usage }: SettingsProps) {
       )}
       {Object.keys(usage.byModel).length > 0 && (
         <>
-          <h4>By model</h4>
+          <h4>{t('usageLocal.byModel')}</h4>
           <Card>
             <table className="table">
               <thead>
                 <tr>
-                  <th>Model</th>
-                  <th>Replies</th>
-                  <th>Input</th>
-                  <th>Cache read</th>
-                  <th>Cache write</th>
-                  <th>Output</th>
-                  <th>Cost</th>
+                  <th>{t('usageLocal.model')}</th>
+                  <th>{t('usageLocal.replies')}</th>
+                  <th>{t('usageLocal.input')}</th>
+                  <th>{t('usageLocal.cacheRead')}</th>
+                  <th>{t('usageLocal.cacheWrite')}</th>
+                  <th>{t('usageLocal.output')}</th>
+                  <th>{t('usageLocal.cost')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -638,26 +656,26 @@ function AccountSection({ account }: SettingsProps) {
       setBusy(false)
     }
   }
-  const auth = account.authSource === undefined ? 'unknown until an employee speaks' : account.authSource === 'none' ? 'Claude subscription (Claude Code login)' : `API key (${account.authSource})`
+  const auth = account.authSource === undefined ? t('account.authUnknown') : account.authSource === 'none' ? t('account.authSubscription') : t('account.authKey', { source: account.authSource })
   return (
     <>
-      <h1>Claude account</h1>
-      <h4>Connection</h4>
+      <h1>{t('settings.nav.account')}</h1>
+      <h4>{t('account.connection')}</h4>
       <Card>
-        <Row title="Signed in through" hint={`Claude Code ${account.claudeCodeVersion ?? ''}`.trim()}>
+        <Row title={t('account.signedIn')} hint={`Claude Code ${account.claudeCodeVersion ?? ''}`.trim()}>
           <span>{auth}</span>
         </Row>
-        <Row title="Refresh limits" hint="Runs a one-word Haiku turn to read the current limit windows. Costs almost nothing.">
+        <Row title={t('account.refresh')} hint={t('account.refreshHint')}>
           <button type="button" className="btn" disabled={busy} onClick={() => void refresh()}>
-            {busy ? 'Checking…' : 'Check now'}
+            {busy ? t('account.checking') : t('account.check')}
           </button>
         </Row>
       </Card>
       {error && <div className="form-error">{error}</div>}
-      <h4>Limits</h4>
+      <h4>{t('account.limits')}</h4>
       <Card>
         {windows.length === 0 ? (
-          <Row title="No limit data yet" hint="Claude reports the windows as employees talk. Press Check now to fetch them." />
+          <Row title={t('account.noData')} hint={t('account.noDataHint')} />
         ) : (
           windows.map((w) => {
             const pct = typeof w.utilization === 'number' ? Math.min(100, Math.round(w.utilization * 100)) : null
@@ -665,10 +683,10 @@ function AccountSection({ account }: SettingsProps) {
             return (
               <div key={w.type} className="limit">
                 <div className="limit-head">
-                  <span className="row-title">{RATE_LIMIT_LABELS[w.type]}</span>
+                  <span className="row-title">{rateLimitLabel(getLocale(), w.type, RATE_LIMIT_LABELS[w.type])}</span>
                   <span className="muted">
-                    {pct === null ? w.status : `${pct}% used`}
-                    {w.resetsAt ? ` · resets ${formatRelative(w.resetsAt * (w.resetsAt < 1e12 ? 1000 : 1))}` : ''}
+                    {pct === null ? t(`account.status.${w.status}` as MessageKey) : t('account.used', { pct })}
+                    {w.resetsAt ? t('account.resets', { when: relativeLabel(w.resetsAt * (w.resetsAt < 1e12 ? 1000 : 1)) }) : ''}
                   </span>
                 </div>
                 <div className={`bar ${tone}`}>
@@ -678,7 +696,7 @@ function AccountSection({ account }: SettingsProps) {
             )
           })
         )}
-        {account.updatedAt && <div className="muted small">Last update {formatRelative(account.updatedAt)}</div>}
+        {account.updatedAt && <div className="muted small">{t('account.updated', { when: relativeLabel(account.updatedAt) })}</div>}
       </Card>
     </>
   )

@@ -42,7 +42,7 @@ After discussion, the critic reviews the plan and the lead decides. Each objecti
 
 ## Install and learn
 
-For a hands-on introduction—including the `Synodica-0.5.1-mac-arm64.dmg` and `Synodica-0.5.1-win-x64.zip`, source install commands, account setup, mobile access and troubleshooting—see [Getting started](docs/en/getting-started.md). Desktop builds are unsigned; macOS builds are not notarized, and Windows hardware testing is pending. Do not disable operating-system security protections to install them.
+For a hands-on introduction—including the `Synodica-0.5.2-mac-arm64.dmg` and `Synodica-0.5.2-win-x64.zip`, source install commands, account setup, mobile access and troubleshooting—see [Getting started](docs/en/getting-started.md). Desktop builds are unsigned; macOS builds are not notarized, and Windows hardware testing is pending. Do not disable operating-system security protections to install them.
 
 - [Provider and subscription setup](docs/zh-CN/subscriptions/README.md)
 - [Ubuntu shared-office deployment](docs/zh-CN/Ubuntu部署.md)
@@ -53,7 +53,7 @@ The browser UI can run locally with Node.js 22 or newer. Follow the [source setu
 
 ## Project status
 
-The target release is **0.5.1**. Usage visibility reflects provider data that is actually available; it does not invent missing quota values. Known limits include no live Google-account quota report for Gemini subscriptions, no independent dsh-pet chat service, unsigned desktop packages, and no Windows hardware acceptance yet.
+The current release is **0.5.2**. On macOS, Codex can use the CLI bundled with an installed ChatGPT or Codex desktop app when no `codex` executable is available on `PATH`; Windows desktop-bundle discovery is not supported. Claude Code / Anthropic-compatible gateways can be configured as separate providers with an explicit endpoint and credential. Settings include Chinese localization and layout repairs. These are configuration and integration capabilities; no real gateway/account model call is claimed as verified. Usage visibility reflects provider data that is actually available. Known limits include no live Google-account quota report for Gemini subscriptions, no independent dsh-pet chat service, unsigned desktop packages, and no Windows hardware acceptance yet.
 
 ## Credits and license
 

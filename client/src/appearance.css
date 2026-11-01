@@ -293,3 +293,21 @@ input[type='checkbox'], input[type='range'] { accent-color: var(--accent); }
 .app-brand span { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .app-brand strong { font-size: 17px; font-weight: 720; letter-spacing: -.35px; color: var(--text); }
 .app-brand small { font-size: 12px; letter-spacing: .12em; color: var(--text-muted); }
+/* Keep settings rows usable when the dialog has a narrow desktop content column. */
+.settings-body { min-width: 0; }
+.settings .row:has(input.wide) .row-control { flex: 1 1 320px; min-width: 0; }
+.settings .row-control input.wide { box-sizing: border-box; width: 100%; min-width: 0; max-width: none; }
+.settings .card > .field:has(.avatar-editor) { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.settings .card > .field:has(.avatar-editor) > span { color: var(--text); font-size: 14px; font-weight: 600; }
+@media (min-width: 821px) and (max-width: 960px) {
+  .settings { grid-template-columns: 190px minmax(0, 1fr); }
+  .settings-body { padding: 24px; }
+}
+
+/* Let marketplace tracks shrink inside the settings column instead of covering the second card. */
+.settings .market-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.settings .market-item { min-width: 0; }
+.settings .market-item > .btn { flex-shrink: 0; }
+@media (max-width: 1100px) {
+  .settings .market-grid { grid-template-columns: minmax(0, 1fr); }
+}

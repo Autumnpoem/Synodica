@@ -1,3 +1,4 @@
+import { claudeEnv } from './claude-env.js'
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import type { McpServerConfig, Options } from '@anthropic-ai/claude-agent-sdk'
 import { needsApproval } from '../approvals.js'
@@ -32,18 +33,6 @@ function summarizeToolUse(name: string, input: unknown): string {
   }
 }
 
-function envFor(provider: ProviderDef): Record<string, string> {
-  const env: Record<string, string> = {}
-  for (const [k, v] of Object.entries(process.env)) {
-    if (v === undefined) continue
-    // Subscription by default: drop any globally exported key so you are never billed by accident.
-    if (k === 'ANTHROPIC_API_KEY' || k === 'ANTHROPIC_AUTH_TOKEN') continue
-    env[k] = v
-  }
-  if (provider.apiKey) env.ANTHROPIC_API_KEY = provider.apiKey
-  if (provider.baseUrl) env.ANTHROPIC_BASE_URL = provider.baseUrl
-  return env
-}
 
 function mcpServersFor(team: Team, agent: Agent): Record<string, McpServerConfig> {
   const out: Record<string, McpServerConfig> = {}
@@ -83,7 +72,7 @@ export function buildQueryOptions(team: Team, conversation: Conversation, agent:
       includePartialMessages: true,
       settingSources: [],
       maxTurns: team.settings.maxTurnsPerReply,
-      env: envFor(provider),
+      env: claudeEnv(provider),
       abortController: abort,
       ...(sessionId ? { resume: sessionId } : {}),
     }
@@ -108,7 +97,7 @@ export function buildQueryOptions(team: Team, conversation: Conversation, agent:
     includePartialMessages: true,
     settingSources: agent.inheritClaudeSettings ? ['user'] : [],
     maxTurns: team.settings.maxTurnsPerReply,
-    env: envFor(provider),
+    env: claudeEnv(provider),
     abortController: abort,
   }
   if (Object.keys(mcpServers).length > 0) options.mcpServers = mcpServers

@@ -1,10 +1,39 @@
 import { spawn } from 'node:child_process'
+import { accessSync, constants, statSync } from 'node:fs'
+import { homedir } from 'node:os'
+import path from 'node:path'
 
 export interface CliRun {
   exitCode: number | null
   stdout: string
   stderr: string
   aborted: boolean
+}
+
+/** Prefer the caller's PATH; on macOS, use the CLI bundled with an installed desktop app. */
+export function resolveCodexCommand(opts: { env?: NodeJS.ProcessEnv; platform?: NodeJS.Platform; applications?: string; home?: string } = {}): string {
+  const env = opts.env ?? process.env
+  const executable = (file: string): boolean => {
+    try {
+      if (!statSync(file).isFile()) return false
+      accessSync(file, constants.X_OK)
+      return true
+    } catch {
+      return false
+    }
+  }
+  for (const dir of (env.PATH ?? '').split(path.delimiter).filter(Boolean)) {
+    if (executable(path.join(dir, 'codex'))) return 'codex'
+  }
+  if ((opts.platform ?? process.platform) !== 'darwin') return 'codex'
+  const roots = [opts.applications ?? '/Applications', path.join(opts.home ?? homedir(), 'Applications')]
+  for (const root of roots) {
+    for (const app of ['ChatGPT.app', 'Codex.app']) {
+      const bundled = path.join(root, app, 'Contents/Resources/codex-cli/bin/codex')
+      if (executable(bundled)) return bundled
+    }
+  }
+  return 'codex'
 }
 
 /**
@@ -19,7 +48,7 @@ export function runCli(
   return new Promise((resolve) => {
     // With shell:true on Windows the args are concatenated, so protect paths that contain spaces.
     const safeArgs = process.platform === 'win32' ? args.map((a) => (/\s/.test(a) && !a.startsWith('"') ? `"${a}"` : a)) : args
-    const child = spawn(command, safeArgs, {
+    const child = spawn(command === 'codex' ? resolveCodexCommand({ env: opts.env }) : command, safeArgs, {
       cwd: opts.cwd,
       env: opts.env,
       shell: process.platform === 'win32',

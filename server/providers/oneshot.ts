@@ -1,3 +1,4 @@
+import { claudeEnv } from './claude-env.js'
 import { query } from '@anthropic-ai/claude-agent-sdk'
 import { runCli } from './cli.js'
 import type { ProviderDef } from '../../shared/types.js'
@@ -12,13 +13,6 @@ export interface OneShotRequest {
   cwd: string
 }
 
-function claudeEnv(provider: ProviderDef): Record<string, string> {
-  const env: Record<string, string> = {}
-  for (const [k, v] of Object.entries(process.env)) if (v !== undefined && k !== 'ANTHROPIC_API_KEY' && k !== 'ANTHROPIC_AUTH_TOKEN') env[k] = v
-  if (provider.apiKey) env.ANTHROPIC_API_KEY = provider.apiKey
-  if (provider.baseUrl) env.ANTHROPIC_BASE_URL = provider.baseUrl
-  return env
-}
 
 /**
  * A single tool-less completion on whichever provider the team configured for an internal

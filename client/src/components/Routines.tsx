@@ -4,6 +4,7 @@ import { cronPresets, deleteRoutine, putRoutine, runRoutine } from '../api'
 import { formatDuration, formatRelative } from '../format'
 import { conversationTitle, personFor } from '../people'
 import { Avatar } from './Avatar'
+import { getLocale, t } from '../i18n'
 
 interface RoutinesProps {
   team: Team
@@ -13,6 +14,15 @@ interface RoutinesProps {
 
 function slug(): string {
   return `r-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`
+}
+
+function relativeLabel(ts: number): string {
+  if (getLocale() !== 'zh-CN') return formatRelative(ts)
+  const diff = ts - Date.now()
+  const abs = Math.abs(diff)
+  const unit = abs < 3_600_000 ? ['minutes', 60_000] as const : abs < 86_400_000 ? ['hours', 3_600_000] as const : ['days', 86_400_000] as const
+  const duration = t(`time.${unit[0]}` as 'time.minutes', { n: Math.round(abs / unit[1]) })
+  return t(diff > 0 ? 'time.in' : 'time.ago', { duration })
 }
 
 export function Routines({ team, conversations, routines }: RoutinesProps) {
@@ -49,19 +59,19 @@ export function Routines({ team, conversations, routines }: RoutinesProps) {
   return (
     <>
       <div className="marketplace-head">
-        <h1>Routines</h1>
+        <h1>{t('settings.nav.routines')}</h1>
         <button type="button" className="btn btn-primary" onClick={() => setEditing(null)}>
-          + New routine
+          {t('routines.new')}
         </button>
       </div>
-      <p className="lead">A routine makes one employee do a job on a schedule, or whenever something hits its webhook (Slack, GitHub, Zapier, a cron service). The result lands in the conversation you pick. Runs while this app is open.</p>
+      <p className="lead">{t('routines.lead')}</p>
       {error && <div className="form-error">{error}</div>}
       <div className="card">
         {routines.length === 0 && (
           <div className="row">
             <div className="row-text">
-              <div className="row-title">No routines yet</div>
-              <div className="row-hint">Example: every weekday at 09:00, Karim posts the outreach list for the day. Or: when a GitHub webhook fires, Omar reviews the commit.</div>
+              <div className="row-title">{t('routines.none')}</div>
+              <div className="row-hint">{t('routines.noneHint')}</div>
             </div>
           </div>
         )}
@@ -75,28 +85,28 @@ export function Routines({ team, conversations, routines }: RoutinesProps) {
               <div className="row-text">
                 <div className="row-title">
                   {r.name}
-                  {!r.enabled && <span className="badge">paused</span>}
+                  {!r.enabled && <span className="badge">{t('routines.paused')}</span>}
                 </div>
                 <div className="row-hint">
-                  {p.name} → {conv ? conversationTitle(team, conv) : r.conversationId} · {r.cron ? `cron ${r.cron}` : 'webhook only'}
-                  {r.nextRunAt ? ` · next ${formatRelative(r.nextRunAt)}` : ''}
+                  {p.name} → {conv ? conversationTitle(team, conv) : r.conversationId} · {r.cron ? t('routines.cron', { cron: r.cron }) : t('routines.webhookOnly')}
+                  {r.nextRunAt ? t('routines.next', { when: relativeLabel(r.nextRunAt) }) : ''}
                 </div>
                 <div className="row-hint">
-                  {last ? `Last run ${formatRelative(last.at)}: ${last.status}${last.error ? ` (${last.error})` : ''} in ${formatDuration(last.durationMs)}` : 'Never ran'} · webhook <code>POST /api/hooks/{r.id}</code>
+                  {last ? t('routines.lastRun', { when: relativeLabel(last.at), status: t(`routines.status.${last.status}` as 'routines.status.ok'), error: last.error ? ` (${last.error})` : '', duration: formatDuration(last.durationMs) }) : t('routines.never')} · {t('routines.webhook')} <code>POST /api/hooks/{r.id}</code>
                 </div>
               </div>
               <div className="row-control">
                 <button type="button" className="btn" disabled={busy === r.id} onClick={() => void run(r.id)}>
-                  {busy === r.id ? 'Running…' : 'Run now'}
+                  {busy === r.id ? t('routines.running') : t('routines.runNow')}
                 </button>
                 <button type="button" className="btn" onClick={() => void toggle(r)}>
-                  {r.enabled ? 'Pause' : 'Resume'}
+                  {r.enabled ? t('routines.pause') : t('routines.resume')}
                 </button>
                 <button type="button" className="btn" onClick={() => setEditing(r)}>
-                  Edit
+                  {t('routines.edit')}
                 </button>
                 <button type="button" className="btn btn-danger-ghost" onClick={() => void remove(r.id)}>
-                  Delete
+                  {t('common.delete')}
                 </button>
               </div>
             </div>
@@ -141,14 +151,14 @@ function RoutineSheet({ team, conversations, routine, onDone }: { team: Team; co
   return (
     <div className="modal-backdrop nested" onMouseDown={(e) => e.target === e.currentTarget && onDone()}>
       <div className="modal sheet" role="dialog">
-        <h2>{routine ? 'Edit routine' : 'New routine'}</h2>
+        <h2>{routine ? t('routines.editTitle') : t('routines.newTitle')}</h2>
         {error && <div className="form-error">{error}</div>}
         <label className="field">
-          <span>Name</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Morning outreach list" autoFocus />
+          <span>{t('routines.name')}</span>
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('routines.namePh')} autoFocus />
         </label>
         <label className="field">
-          <span>Employee</span>
+          <span>{t('routines.employee')}</span>
           <select value={agentId} onChange={(e) => setAgentId(e.target.value)}>
             {team.agents.map((a) => (
               <option key={a.id} value={a.id}>
@@ -158,40 +168,39 @@ function RoutineSheet({ team, conversations, routine, onDone }: { team: Team; co
           </select>
         </label>
         <label className="field">
-          <span>Post the result in</span>
+          <span>{t('routines.postIn')}</span>
           <select value={conversationId} onChange={(e) => setConversationId(e.target.value)}>
             {eligible.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.kind === 'group' ? `Group · ${conversationTitle(team, c)}` : `DM · ${conversationTitle(team, c)}`}
+                {c.kind === 'group' ? `${t('usageLocal.group')} · ${conversationTitle(team, c)}` : `${t('usageLocal.directMessage')} · ${conversationTitle(team, c)}`}
               </option>
             ))}
           </select>
         </label>
         <label className="field">
-          <span>Schedule (cron, local time; leave empty for webhook-only)</span>
+          <span>{t('routines.schedule')}</span>
           <input value={cron} onChange={(e) => setCron(e.target.value)} placeholder="0 9 * * 0-4" />
           <div className="chips">
-            {presets.map((p) => (
-              <button key={p.cron} type="button" className={`chip${cron === p.cron ? ' is-active' : ''}`} onClick={() => setCron(p.cron)}>
-                {p.label}
-              </button>
-            ))}
+            {presets.map((p) => {
+              const id = ({ '0 * * * *': 'hourly', '0 8 * * *': 'daily-0800', '0 18 * * *': 'daily-1800', '0 9 * * 0-4': 'weekdays-0900', '0 10 * * 1': 'monday-1000', '0 9 1 * *': 'monthly-0900' } as Record<string, string>)[p.cron]
+              return <button key={p.cron} type="button" className={`chip${cron === p.cron ? ' is-active' : ''}`} onClick={() => setCron(p.cron)}>{id ? t(`routines.preset.${id}` as 'routines.preset.hourly') : p.label}</button>
+            })}
             <button type="button" className={`chip${cron === '' ? ' is-active' : ''}`} onClick={() => setCron('')}>
-              Webhook only
+              {t('routines.webhookChip')}
             </button>
           </div>
         </label>
         <label className="field">
-          <span>Instruction</span>
-          <textarea rows={5} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder="Pull today's leads from …, skip anyone already contacted, and post a ranked list with one line each. Do not send anything." />
-          <small>Written like a message to that employee. Their tools, folder and personality apply as usual.</small>
+          <span>{t('routines.instruction')}</span>
+          <textarea rows={5} value={instruction} onChange={(e) => setInstruction(e.target.value)} placeholder={t('routines.instructionPh')} />
+          <small>{t('routines.instructionHint')}</small>
         </label>
         <div className="actions">
           <button type="button" className="btn" onClick={onDone}>
-            Cancel
+            {t('common.cancel')}
           </button>
           <button type="button" className="btn btn-primary" disabled={busy || !instruction.trim() || !conversationId} onClick={() => void save()}>
-            {busy ? 'Saving…' : 'Save'}
+            {busy ? t('common.saving') : t('common.save')}
           </button>
         </div>
       </div>

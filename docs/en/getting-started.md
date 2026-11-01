@@ -2,13 +2,13 @@
 
 [简体中文](../zh-CN/快速开始.md)
 
-Synodica is a shared workspace for reusable AI personas, group conversations and project work. This guide covers the 0.5.1 desktop release and the current source workflow. It does not configure an account or make a model call for you.
+Synodica is a shared workspace for reusable AI personas, group conversations and project work. This guide covers the 0.5.2 desktop release and the current source workflow. It does not configure an account or make a model call for you.
 
 ## Install the desktop app
 
-Use the package for your computer: **Apple silicon Mac**: `Synodica-0.5.1-mac-arm64.dmg`; **64-bit Windows**: `Synodica-0.5.1-win-x64.zip`. Get the files from the release bundle you trust. On Mac, open the DMG and drag Synodica to Applications. On Windows, extract the ZIP and run `Synodica.exe`; keep the extracted folder together.
+Use the package for your computer: **Apple silicon Mac**: `Synodica-0.5.2-mac-arm64.dmg`; **64-bit Windows**: `Synodica-0.5.2-win-x64.zip`. Get the files from the release bundle you trust. On Mac, open the DMG and drag Synodica to Applications. On Windows, extract the ZIP and run `Synodica.exe`; keep the extracted folder together.
 
-These builds are unsigned; the Mac build is also not notarized. Your operating system may warn you or refuse to open it. Only continue if you trust the source and have checked the release; do not disable or bypass the operating system's security protections. Windows package contents were checked, but Windows hardware operation has not yet been tested. The initial release targets Apple silicon, not Intel Macs.
+These builds are unsigned; the Mac build is also not notarized. Your operating system may warn you or refuse to open it. Only continue if you trust the source and have checked the release; do not disable or bypass the operating system's security protections. Windows package contents were checked, but Windows hardware operation has not yet been tested. This release targets Apple silicon, not Intel Macs. Windows hardware operation has not yet been tested, and Windows does not discover a Codex CLI bundled inside ChatGPT/Codex Desktop.
 
 ## Run from source instead
 
@@ -79,3 +79,12 @@ For a shared office, deploy the backend on a server with HTTPS, then connect the
 - **A phone shows a different office:** check the server URL and sign-in token. Separate local offices do not merge automatically.
 
 Synodica's original contributions use the source-available [PolyForm Noncommercial 1.0.0 license](../../LICENSE), with attribution in [NOTICE](../../NOTICE). Redistribution must credit Synodica and retain the original repository link, NOTICE and license. Commercial use of those contributions requires permission; the project is not OSI-approved open source. Upstream OpenGrokBot retains separate MIT rights in [licenses/OpenGrokBot-MIT.txt](../../licenses/OpenGrokBot-MIT.txt).
+
+
+### What is new in 0.5.2
+
+On macOS, Synodica uses `codex` from `PATH` first; if it is unavailable there, it can discover the CLI bundled with an installed ChatGPT or Codex desktop app. It reuses an available Codex login without exporting tokens or installing a second CLI, and calls the CLI engine rather than the desktop UI. This discovery is not supported on Windows.
+
+An optional Claude Code / Anthropic-compatible gateway can be configured as a separate provider. Choose x-api-key or Bearer authentication, then enter the gateway root, its own credential and exact model IDs. Changing the endpoint origin requires a fresh credential; saved official keys and OAuth tokens are not forwarded. Gateway setup does not modify global Claude settings or sign-ins. Settings also include completed Chinese localization and layout repairs.
+
+These describe available configuration and routing behavior; this guide does not claim that a real gateway, account or model call was verified. See the [gateway guide](../zh-CN/subscriptions/07-Claude中转与Antigravity.md). Google subscription login uses Gemini CLI's official browser flow; Google AI Studio API is a separate no-CLI option with separate billing. Kimi Code membership uses a Code Console API key; Kimi CLI's `/login` OAuth flow is not imported by Synodica.

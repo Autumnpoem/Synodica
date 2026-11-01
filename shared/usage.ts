@@ -324,6 +324,7 @@ function isLoopback(host: string): boolean {
  */
 export function classifyProvider(def: ProviderDef): Classification {
   if (def.kind === 'claude') {
+    if (def.baseUrl && urlOf(def.baseUrl)?.origin !== 'https://api.anthropic.com') return { type: 'openai-compatible', capability: 'unsupported', binding: def.apiKey ? 'provider-key' : 'none', reason: 'generic-endpoint' }
     if (def.apiKey) return { type: 'anthropic-api', capability: 'unsupported', binding: 'provider-key', reason: 'anthropic-key' }
     return { type: 'claude-subscription', capability: 'consent', source: 'internal-compat', endpoint: USAGE_ENDPOINTS.claude, binding: 'claude-login-file' }
   }

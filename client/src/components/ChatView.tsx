@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { PROVIDER_CAPABILITIES } from '../../../shared/catalog'
 import type { AgentActivity, ApprovalRequest, Conversation, Message, Project, Team, UsageSummary } from '../../../shared/types'
+import { capabilityNotes, effortLabel, providerLabel } from '../../../shared/catalog-i18n'
 import { activityLine } from '../activity'
 import { formatCost, formatDuration, formatTokens, modelLabel } from '../format'
-import { t } from '../i18n'
+import { getLocale, t } from '../i18n'
 import { conversationAvatars, conversationTitle, personFor, type Person } from '../people'
 import { ApprovalCard } from './Approval'
 import { Avatar, AvatarCluster } from './Avatar'
@@ -176,14 +176,14 @@ export function ChatView({ team, conversation, typing, usage, approvals, jumpTo,
                     const act = activity.get(id)
                     const def = a ? team.providers[a.provider] : undefined
                     return (
-                      <button key={id} type="button" className="info-member" onClick={() => onEditAgent(id)} title={def ? `${def.label}: ${PROVIDER_CAPABILITIES[def.kind].notes}` : t('menu.editProfile')}>
+                      <button key={id} type="button" className="info-member" onClick={() => onEditAgent(id)} title={def ? `${providerLabel(getLocale(), def)}: ${capabilityNotes(getLocale(), def.kind)}` : t('menu.editProfile')}>
                         <Avatar person={p} size={30} />
                         <span className="info-text">
                           <span className="info-name">{p.label}</span>
                           {a && (
                             <span className="info-meta">
                               {(def?.kind ?? 'claude') === 'claude' ? '' : `${def?.label.split(' ')[0] ?? a.provider} · `}
-                              {modelLabel(a.model)} · {a.effort}
+                              {modelLabel(a.model)} · {effortLabel(getLocale(), { id: a.effort, label: a.effort })}
                               {a.muted ? ` · ${t('nav.muted')}` : ''}
                               {u ? ` · ${formatTokens(u.inputTokens + u.cacheReadTokens + u.cacheCreationTokens + u.outputTokens)} tok` : ''}
                             </span>

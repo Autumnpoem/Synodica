@@ -135,6 +135,10 @@ export function parseProvider(raw: unknown, label = 'provider'): ProviderDef {
   const def: ProviderDef = { kind: kind as ProviderDef['kind'], label: typeof r.label === 'string' && r.label.trim() ? r.label.trim() : kind }
   if (typeof r.apiKey === 'string' && r.apiKey.trim()) def.apiKey = r.apiKey.trim()
   if (typeof r.baseUrl === 'string' && r.baseUrl.trim()) def.baseUrl = r.baseUrl.trim().replace(/\/+$/, '')
+  if (kind === 'claude' && r.authMode !== undefined) {
+    if (r.authMode !== 'api-key' && r.authMode !== 'auth-token') fail(`${label}.authMode must be api-key or auth-token`)
+    def.authMode = r.authMode
+  }
   if (kind === 'openai' && !def.baseUrl) fail(`${label}.baseUrl is required for an API provider`)
   const models = asStringList(r.models)
   if (models.length > 0) def.models = models

@@ -1,3 +1,4 @@
+import { parseProviderUpdate } from './provider-config.js'
 import express from 'express'
 import { spawn } from 'node:child_process'
 import { randomUUID } from 'node:crypto'
@@ -32,7 +33,7 @@ import { ProjectStore } from './projects.js'
 import { providerStatuses } from './providers/index.js'
 import { Routines } from './routines.js'
 import { Store } from './store.js'
-import { applyTemplate, loadTeam, parseAgent, parseMcpServer, parseProvider, parseSkill, parseTeam, saveTeam, TeamError } from './team.js'
+import { applyTemplate, loadTeam, parseAgent, parseMcpServer, parseSkill, parseTeam, saveTeam, TeamError } from './team.js'
 import { summarizeUsage } from './usage.js'
 import { projectContext, Workflow, WorkflowError } from './workflow.js'
 import type { AppState, Attachment, Project, TaskKind, TaskTier, Team } from '../shared/types.js'
@@ -1091,8 +1092,7 @@ app.put('/api/team/providers/:id', (req, res) => {
     const body = (req.body ?? {}) as Record<string, unknown>
     const current = team.providers[id]
     // "••••" means "keep the stored key".
-    const apiKey = body.apiKey === '••••' ? current?.apiKey : body.apiKey
-    const def = parseProvider({ ...(current ?? {}), ...body, apiKey }, id)
+    const def = parseProviderUpdate(current, body, id)
     if (current && current.kind !== def.kind && ['claude', 'codex', 'gemini'].includes(id)) throw new TeamError('team: built-in providers keep their kind')
     applyTeam(parseTeam({ ...team, providers: { ...team.providers, [id]: def } }, root))
     res.json({ ok: true })

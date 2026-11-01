@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { EFFORTS, MODELS, MODEL_SUGGESTIONS, PERMISSION_MODES, PROVIDER_CAPABILITIES, PROVIDER_KINDS, SHAPES, TOOLS } from '../../../shared/catalog'
 import type { MessageKey } from '../../../shared/i18n'
+import { effortLabel, providerLabel } from '../../../shared/catalog-i18n'
 import type { Agent, ApprovalPolicy, AvatarShape, Effort, PermissionMode, ProviderStatus, TaskTier, Team, UsageTotals, WorkflowRole } from '../../../shared/types'
 
 /** Workflow roles; labels and hints are `role.<id>` / `role.<id>Hint` in the UI language. */
 const WORKFLOW_ROLES: WorkflowRole[] = ['lead', 'critic', 'implementer', 'reviewer', 'tester', 'writer']
 import { createAgent, deleteAgent, duplicateAgent, getMemory, providerStatuses, putMemory, updateAgent } from '../api'
 import { formatCost, formatTokens } from '../format'
-import { t } from '../i18n'
+import { getLocale, t } from '../i18n'
 import { personFor } from '../people'
 import { Avatar } from './Avatar'
 import { AvatarEditor } from './AvatarEditor'
@@ -212,7 +213,7 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
             <select value={draft.provider} onChange={(e) => changeProvider(e.target.value)}>
               {Object.entries(team.providers).map(([id, p]) => (
                 <option key={id} value={id}>
-                  {p.label}
+                  {providerLabel(getLocale(), p)}
                 </option>
               ))}
             </select>
@@ -235,7 +236,7 @@ export function Profile({ team, agentId, usage, onClose, onSaved }: ProfileProps
             <div className="segmented">
               {EFFORTS.map((e) => (
                 <button key={e.id} type="button" className={draft.effort === e.id ? 'is-active' : ''} onClick={() => set('effort', e.id as Effort)}>
-                  {e.label}
+                  {effortLabel(getLocale(), e)}
                 </button>
               ))}
             </div>

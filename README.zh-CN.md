@@ -42,7 +42,7 @@
 
 ## 安装与指南
 
-[快速开始](docs/zh-CN/快速开始.md)介绍 `Synodica-0.5.1-mac-arm64.dmg`、`Synodica-0.5.1-win-x64.zip`、源码安装命令、账号配置、手机访问和常见问题。桌面包尚未签名；macOS 包未经公证，Windows 真机测试仍待完成。请勿为安装而关闭操作系统安全保护。
+[快速开始](docs/zh-CN/快速开始.md)介绍 `Synodica-0.5.2-mac-arm64.dmg`、`Synodica-0.5.2-win-x64.zip`、源码安装命令、账号配置、手机访问和常见问题。桌面包尚未签名；macOS 包未经公证，Windows 真机测试仍待完成。请勿为安装而关闭操作系统安全保护。
 
 - [服务商与订阅接入](docs/zh-CN/subscriptions/README.md)
 - [Ubuntu 共享办公室部署](docs/zh-CN/Ubuntu部署.md)
@@ -53,7 +53,7 @@
 
 ## 当前版本与已知限制
 
-当前文档面向 **0.5.1**。用量界面只展示服务商实际提供的数据，不会猜测缺失的额度。已知限制包括：Gemini Google 订阅暂无实时额度报告；dsh-pet 独立聊天服务尚未接入；桌面安装包未签名；Windows 尚未真机验收。
+当前版本为 **0.5.2**。macOS 上若 `PATH` 中没有 `codex`，Codex 可发现已安装的 ChatGPT 或 Codex 桌面应用所附带的 CLI；Windows 不支持桌面应用内 CLI 探测。Claude Code／Anthropic 兼容网关可作为独立服务商配置，并明确填写端点和凭据。设置页面已补齐中文文案和布局修正。这些是配置与接入能力，不代表已经验证真实网关、账号或模型调用。用量界面只展示服务商实际提供的数据，不会猜测缺失的额度。已知限制包括：Gemini Google 订阅暂无实时额度报告；dsh-pet 独立聊天服务尚未接入；桌面安装包未签名；Windows 尚未真机验收。
 
 ## 致谢与许可
 

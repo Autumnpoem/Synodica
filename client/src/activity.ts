@@ -38,6 +38,26 @@ export function since(ts: number, now = Date.now()): string {
   return t('time.hours', { n: Math.round(m / 60) })
 }
 
+/** Localize only the safe, fixed reasons projected by server/activity.ts. Unknown details stay literal. */
+function localizedReason(reason: string): string {
+  const http = /^HTTP (\d{3})$/.exec(reason)
+  if (http) return t('activity.reason.http', { status: http[1] ?? '' })
+  const keys: Record<string, MessageKey> = {
+    'Did not start: another writer is using this folder': 'activity.reason.writerBusy',
+    'Rate limited by the provider': 'activity.reason.rateLimited',
+    'Provider CLI not found': 'activity.reason.cliMissing',
+    'Not signed in or not authorized': 'activity.reason.unauthorized',
+    'Timed out': 'activity.reason.timeout',
+    'Could not reach the provider': 'activity.reason.unreachable',
+    'The provider stream broke': 'activity.reason.streamBroken',
+    'No base URL configured': 'activity.reason.noBaseUrl',
+    'The turn failed · details in the chat': 'activity.reason.turnFailed',
+    'Check failed · details on the Providers page': 'activity.reason.checkFailed',
+  }
+  const key = keys[reason]
+  return key ? t(key) : reason
+}
+
 /** A duration in the UI language (the same shape as formatDuration in English). */
 export function duration(ms: number): string {
   const s = Math.max(0, Math.floor(ms / 1000))
@@ -58,7 +78,8 @@ export function presenceLabel(view: PresenceView, a: AgentActivity | undefined, 
 
 /** The detail line: a tool line stays literal; the connection-lost "last known" note is localized. */
 export function presenceDetail(view: PresenceView, a: AgentActivity | undefined, now: number, connected: boolean): string | undefined {
-  if (getLocale() === 'en' || connected || !a) return view.detail
+  if (getLocale() === 'en' || !a) return view.detail
+  if (connected) return view.detail ? localizedReason(view.detail) : undefined
   return t('presence.lastKnown', { label: presenceLabel(presenceOf(a, now), a, true) })
 }
 
@@ -68,7 +89,7 @@ export function providerText(check: ProviderCheck | undefined, now: number): { s
   if (getLocale() === 'en') return line
   if (!check) return { state: line.state, text: t('provider.notChecked') }
   const ago = duration(now - check.at)
-  return { state: line.state, text: check.ok ? t('provider.reachable', { ago }) : t('provider.unavailable', { detail: check.detail, ago }) }
+  return { state: line.state, text: check.ok ? t('provider.reachable', { ago }) : t('provider.unavailable', { detail: localizedReason(check.detail), ago }) }
 }
 
 /** One honest line: state, task, detail and how long. Unknown when the server has not reported yet. */
@@ -76,7 +97,7 @@ export function activityLine(a: AgentActivity | undefined): string {
   if (!a) return t('activity.unknown')
   const parts = [ACTIVITY_LABEL[a.state]]
   if (a.taskRef) parts.push(a.taskRef)
-  if (a.detail && a.state !== 'idle') parts.push(a.detail)
+  if (a.detail && a.state !== 'idle') parts.push(getLocale() === 'en' ? a.detail : localizedReason(a.detail))
   parts.push(t('desk.for', { d: since(a.since) }))
   return parts.join(' · ')
 }

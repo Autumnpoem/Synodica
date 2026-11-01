@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { PROVIDER_CAPABILITIES } from '../../../shared/catalog'
 import { getTeamPreset, presetModel, presetProvider, TEAM_PRESET_IDS, type TeamPresetId } from '../../../shared/team-presets'
+import { providerLabel } from '../../../shared/catalog-i18n'
 import type { ProviderStatus, Team } from '../../../shared/types'
 import { applyTeamTemplate, providerStatuses } from '../api'
 import { getLocale, t } from '../i18n'
@@ -91,7 +92,7 @@ export function TeamTemplate({ team, onClose, initialPreset = 'company', onAppli
               <div className="seat-row">
                 <label className="field"><span>{t('profile.provider')}</span><select aria-label={`${agent.name} ${t('profile.provider')}`} value={row.provider} disabled={busy || !!existing} onChange={(e) => set(seat.agent.id, { provider: e.target.value, model: presetModel(team, e.target.value, statuses) })}>
                   <option value="">{t('template.chooseProvider')}</option>
-                  {Object.entries(team.providers).map(([id, d]) => <option key={id} value={id}>{d.label}</option>)}
+                  {Object.entries(team.providers).map(([id, d]) => <option key={id} value={id}>{providerLabel(getLocale(), d)}</option>)}
                 </select></label>
                 <label className="field"><span>{t('profile.model')}</span><input aria-label={`${agent.name} ${t('profile.model')}`} disabled={busy || !!existing} value={row.model} onChange={(e) => set(seat.agent.id, { model: e.target.value })} placeholder={t('profile.modelPh')} className="mono" /></label>
               </div>

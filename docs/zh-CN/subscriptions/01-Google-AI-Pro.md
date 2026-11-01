@@ -38,3 +38,12 @@ gemini --version
 登录必须属于运行后端的用户，而不是只在你自己的 Mac 浏览器里登录。远程机器首次授权需要遵循官方工具当时显示的流程；已缓存的登录可用于无界面调用。公司、学校或 Workspace 账号可能还需配置 Google Cloud 项目，按官方登录文档操作。
 
 常见问题：本地可用而服务器不可用，先核对后端用户、HOME、命令是否在服务进程的 PATH 中，以及登录是否属于同一个 Google 账号。
+
+
+## 不使用命令行的接口接入
+
+“设置 → 服务商 → 添加服务商”中选择“Google AI Studio 接口（单独计费）”，填写 AI Studio 密钥和该账号可用的模型标识。这使用 Google 官方 OpenAI 兼容接口；不通过 Gemini CLI。接口计费与 Google AI Pro 订阅分别计算。
+
+使用 Google 账号订阅时，目前仍由 Gemini CLI 完成登录：运行 `gemini`，选择“使用 Google 登录”，在浏览器完成授权。无需手动导出令牌；Antigravity 登录不会被自动导入。
+
+官方资料：[Gemini CLI 登录](https://geminicli.com/docs/get-started/authentication/)、[Google OpenAI 兼容接口](https://ai.google.dev/gemini-api/docs/openai)。

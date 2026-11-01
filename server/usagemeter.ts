@@ -9,6 +9,7 @@ import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { resolveCodexCommand } from './providers/cli.js'
 import { translate, type Locale, type MessageKey } from '../shared/i18n.js'
 import type { ProviderDef, Team, UsageSummary } from '../shared/types.js'
 import {
@@ -170,7 +171,7 @@ export function queryCodexAppServer(opts: { command?: string; env?: NodeJS.Proce
     for (const [k, v] of Object.entries(opts.env ?? process.env)) if (!k.startsWith('OPENGROKBOT_')) env[k] = v
     let child: ReturnType<typeof spawn>
     try {
-      child = spawn(opts.command ?? 'codex', ['app-server'], { env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
+      child = spawn(opts.command ?? resolveCodexCommand({ env }), ['app-server'], { env, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true })
     } catch {
       reject(new UsageFailure('cli-missing', 'codex-missing'))
       return
