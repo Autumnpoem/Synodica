@@ -64,7 +64,7 @@ test('model router keeps ordinary three-speaker cap and honors explicit everyone
 test('scoped employee may raise a concrete cross-role objection', () => {
   const scoped = { ...omar, scope: 'security' }
   const prompt = buildSystemPrompt(team, group(), scoped)
-  assert.match(prompt, /primary responsibility, not a limit/)
+  assert.match(prompt, /primary responsibility, not a reason to ignore a direct user question/)
   assert.match(prompt, /concrete, material objection with a reason or evidence/)
   assert.doesNotMatch(prompt, /Speak only about that/)
 })

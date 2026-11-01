@@ -2,13 +2,13 @@
 
 [简体中文](../zh-CN/快速开始.md)
 
-Synodica is a shared workspace for reusable AI personas, group conversations and project work. This guide covers version 0.5.4 desktop packages and the source workflow. It does not configure an account or make a model call for you.
+Synodica is a shared workspace for reusable AI personas, group conversations and project work. This guide covers version 0.5.5 desktop packages and the source workflow. It does not configure an account or make a model call for you.
 
 Choose **Light**, **Dark** or **System** in the appearance setting. The quota dock and its floating desktop window follow the office's appearance preference when opened from the same office origin.
 
 ## Install the desktop app
 
-Use the package for your computer: **Apple silicon Mac**: `Synodica-0.5.4-mac-arm64.dmg`; **64-bit Windows**: `Synodica-0.5.4-win-x64.zip`. Download them from the project's GitHub Releases page when listed. On Mac, open the DMG and drag Synodica to Applications. On Windows, extract the ZIP and run `Synodica.exe`; keep the extracted folder together.
+Use the package for your computer: **Apple silicon Mac**: `Synodica-0.5.5-mac-arm64.dmg`; **64-bit Windows**: `Synodica-0.5.5-win-x64.zip`. Download them from the project's GitHub Releases page when listed. On Mac, open the DMG and drag Synodica to Applications. On Windows, extract the ZIP and run `Synodica.exe`; keep the extracted folder together.
 
 These builds are unsigned; the Mac build is also not notarized. Your operating system may warn you or refuse to open it. Only continue if you trust the source and have checked the release; do not disable or bypass the operating system's security protections. Windows package contents were checked, but Windows hardware operation has not yet been tested. This release targets Apple silicon, not Intel Macs. Windows does not discover a Codex CLI bundled inside ChatGPT/Codex Desktop.
 

@@ -1,6 +1,6 @@
 {
   "name": "synodica",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "private": true,
   "type": "module",
   "description": "A multi-model team workspace for project delivery and research: reusable personas, shared conversations, task review, desktop companions and usage visibility.",

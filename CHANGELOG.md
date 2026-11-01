@@ -1,6 +1,26 @@
 # Synodica 更新记录 / Changelog
 
-按版本记录用户可见的变化。当前项目版本为 **0.5.4**；安装文件与校验值以 [GitHub Releases](https://github.com/Autumnpoem/Synodica/releases) 页面为准。
+按版本记录用户可见的变化。当前项目版本为 **0.5.5**；安装文件与校验值以 [GitHub Releases](https://github.com/Autumnpoem/Synodica/releases) 页面为准。
+
+## 0.5.5 · 2026-11-02
+
+### 中文
+
+- 聊天 Markdown 表格渲染为表头和数据行，增加单元格留白、边框和列对齐；较宽表格在消息内横向滚动，不再挤成竖线文字。保留粗体、行内代码、角色提及与文件按钮，并处理不完整的流式文本。
+- 普通用户回复轮次重新提供有界的近期用户问题与纠正，已有续接会话也会收到。最新用户方向优先于冲突的旧方向；同事猜测不能当成用户确认的事实。旧排队轮次不吸收下一条用户请求。
+- 咨询、比较和计算问题优先在聊天中直接回答；仅在用户要求文件或分配了交付任务时制作文件。角色专长服务于用户当前问题，允许有依据的异议，减少重复追问和无请求的文档重写。
+- 不新增模型调用，不改现有账号、模型绑定或保存的人设。
+
+### English
+
+- Render Markdown chat tables with semantic headers and rows, cell padding, borders and column alignment. Wide tables scroll inside the message. Preserve bold, inline code, mentions and file chips, with readable partial streaming content.
+- Replay a bounded set of recent direct user requests and corrections on ordinary user reply turns, including resumed sessions. Newer conflicting directions take precedence; peer speculation is not user-confirmed fact. Older queued rounds do not absorb the next user request.
+- Answer advisory comparisons and calculations in chat before creating files; create artifacts only when requested or assigned. Role expertise supports the current question and evidence-based disagreement, rather than diverting it into familiar tasks.
+- No additional model calls or changes to saved accounts, model bindings or personas.
+
+### Verification reported for this version
+
+268 server tests and 52 client checks, typecheck and build passed. Focus regressions check resumed-turn replay, queued-message boundaries and bounded excerpts; table regressions render the real React component. Provider inference is not part of these automated checks.
 
 ## 0.5.4 · 2026-11-02
 
