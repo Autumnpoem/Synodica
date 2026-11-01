@@ -25,6 +25,7 @@ import { CRON_PRESETS, nextRun } from './cron.js'
 import { emit, subscribe } from './events.js'
 import { mimeOf } from './files.js'
 import { Memory } from './memory.js'
+import { findMentions } from './mentions.js'
 import { Orchestrator } from './orchestrator.js'
 import { WorkspaceLocks } from './locks.js'
 import { allowedRealFile as realFileInRoots, canonicalPath, isInside } from './paths.js'
@@ -479,7 +480,12 @@ app.post('/api/conversations/:id/messages', (req, res) => {
     return
   }
   const rt = body.replyTo as { messageId?: unknown; authorId?: unknown; excerpt?: unknown } | undefined
-  const replyTo = rt && typeof rt.messageId === 'string' && typeof rt.authorId === 'string' && typeof rt.excerpt === 'string' ? { messageId: rt.messageId, authorId: rt.authorId, excerpt: rt.excerpt.slice(0, 200) } : undefined
+  const referenced = typeof rt?.messageId === 'string' ? store.get(id)?.messages.find((m) => m.id === rt.messageId) : undefined
+  if (rt && (!referenced || referenced.authorId !== rt.authorId || typeof rt.excerpt !== 'string')) {
+    res.status(400).json({ error: 'reply target is not in this conversation' })
+    return
+  }
+  const replyTo = referenced ? { messageId: referenced.id, authorId: referenced.authorId, excerpt: referenced.text.slice(0, 200) } : undefined
   const requestId = req.get('Idempotency-Key')
   // In a project chat, /kickoff, /critique and /start drive the workflow instead of starting a chat round.
   const project = projects.byConversation(id)
@@ -520,7 +526,7 @@ app.post('/api/conversations/:id/correct', (req, res) => {
     res.status(404).json({ error: 'unknown conversation' })
     return
   }
-  const b = (req.body ?? {}) as { text?: unknown; mode?: unknown }
+  const b = (req.body ?? {}) as { text?: unknown; mode?: unknown; targetAgentId?: unknown }
   const text = typeof b.text === 'string' ? b.text.trim() : ''
   if (!text) {
     res.status(400).json({ error: 'write the correction' })
@@ -530,8 +536,18 @@ app.post('/api/conversations/:id/correct', (req, res) => {
     res.status(400).json({ error: 'the correction is too long' })
     return
   }
+  const conversation = store.get(id)!
+  const members = team.agents.filter((agent) => conversation.memberIds.includes(agent.id))
+  if (b.targetAgentId !== undefined && (typeof b.targetAgentId !== 'string' || !members.some((agent) => agent.id === b.targetAgentId) || conversation.projectId)) {
+    res.status(400).json({ error: 'invalid correction target' })
+    return
+  }
+  const mentioned = findMentions(text, team.agents)
+  const singleMention = !/(^|[^a-z0-9_])@everyone(?![a-z0-9_])/i.test(text) && mentioned.length === 1 && members.some((agent) => agent.id === mentioned[0]?.id) ? mentioned[0] : undefined
+  const targetAgentId = !conversation.projectId ? (singleMention?.id ?? b.targetAgentId) : undefined
+  const targetName = members.find((agent) => agent.id === targetAgentId)?.name
   try {
-    const correction = corrector.correct(id, text, { mode: b.mode === 'replan' ? 'replan' : 'continue' })
+    const correction = corrector.correct(id, text, { mode: b.mode === 'replan' ? 'replan' : 'continue', ...(targetAgentId ? { targetAgentId, targetName } : {}) })
     res.json({ correction })
   } catch (err) {
     workflowError(res, err)

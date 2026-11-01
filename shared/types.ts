@@ -291,6 +291,8 @@ export interface CorrectionRecord {
   id: string
   conversationId: string
   projectId?: string
+  /** In ordinary chats, only this employee's turn was interrupted. */
+  targetAgentId?: string
   /** The owner's original words. */
   text: string
   mode: CorrectionMode

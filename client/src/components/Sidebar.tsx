@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { MessageKey } from '../../../shared/i18n'
+import { localizedText } from '../../../shared/notes'
 import { presenceOf } from '../../../shared/presence'
 import type { AgentActivity, ApprovalRequest, Conversation, Project, Team } from '../../../shared/types'
 import { conversationAvatars, conversationTitle, formatTime, personFor } from '../people'
-import { t } from '../i18n'
+import { getLocale, t } from '../i18n'
 import { desktopBridge } from '../companion'
 import { lastRead } from '../unread'
 import { Avatar, AvatarCluster } from './Avatar'
@@ -76,7 +77,7 @@ export function Sidebar({ team, conversations, activeId, busy, approvals, readTi
     const last = c.messages[c.messages.length - 1]
     const people = conversationAvatars(c).map((id) => personFor(team, id))
     const active = c.id === activeId
-    const preview = last ? previewOf(team, c, last.authorId, last.text) : c.kind === 'group' ? t('sidebar.emptyGroup') : t('sidebar.emptyConversation')
+    const preview = last ? previewOf(team, c, last.authorId, last.authorId === 'workflow' ? localizedText(getLocale(), last.text, last.note) : last.text) : c.kind === 'group' ? t('sidebar.emptyGroup') : t('sidebar.emptyConversation')
     const agent = c.kind === 'dm' ? people[0]?.agent : undefined
     const since = lastRead(c.id)
     const unread = active ? 0 : c.messages.filter((m) => m.authorId !== 'user' && m.status === 'done' && m.createdAt > since).length
@@ -187,9 +188,10 @@ export function Sidebar({ team, conversations, activeId, busy, approvals, readTi
 
 function previewOf(team: Team, c: Conversation, authorId: string, text: string): string {
   const clean = text.replace(/\s+/g, ' ').trim()
-  if (clean.length === 0) return `${personFor(team, authorId).name} is typing…`
+  const name = authorId === 'workflow' ? t('common.workflow') : personFor(team, authorId).name
+  if (clean.length === 0) return `${name} is typing…`
   if (c.kind === 'dm' || authorId === 'user') return clean
-  return `${personFor(team, authorId).name}: ${clean}`
+  return `${name}: ${clean}`
 }
 
 function PlusIcon() {

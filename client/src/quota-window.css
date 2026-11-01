@@ -8,9 +8,9 @@
   box-shadow:0 22px 60px #02061059,0 4px 15px #02061040,inset 0 1px 0 #ffffff0b;
   overflow:hidden;
 }
-.quota-dock {position:fixed;right:18px;bottom:18px;z-index:35;width:min(340px,calc(100vw - 36px));max-height:min(70vh,600px);display:flex;flex-direction:column;backdrop-filter:blur(24px)}
+.quota-dock {position:fixed;right:18px;bottom:var(--qd-bottom,18px);z-index:35;width:min(340px,calc(100vw - 36px));max-height:min(70vh,600px,var(--qd-safe-height,100vh));display:flex;flex-direction:column;backdrop-filter:blur(24px)}
 .quota-dock.is-collapsed {width:min(280px,calc(100vw - 36px))}
-.quota-dock-launcher {position:fixed;right:18px;bottom:18px;z-index:35;display:flex;align-items:center;gap:9px;padding:11px 16px;border-radius:15px;border:1px solid #5f82955c;background:#111c2a;color:#def7fc;box-shadow:0 8px 25px #050a1b40;font:600 12px var(--font);cursor:pointer}
+.quota-dock-launcher {position:fixed;right:18px;bottom:var(--qd-bottom,18px);z-index:35;display:flex;align-items:center;gap:9px;padding:11px 16px;border-radius:15px;border:1px solid #5f82955c;background:#111c2a;color:#def7fc;box-shadow:0 8px 25px #050a1b40;font:600 12px var(--font);cursor:pointer}
 .qd-launcher-light {height:6px;width:6px;border-radius:50%;background:#7ce4ec;box-shadow:0 0 9px #73e5e866}
 .qd-head,.quota-native-head {display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:62px;box-sizing:border-box;padding:9px 13px;border-bottom:1px solid var(--qd-line);background:linear-gradient(115deg,#96d7ff08,transparent);touch-action:none;user-select:none;cursor:move;flex:none}
 .is-collapsed .qd-head {border-bottom:0}
@@ -90,7 +90,7 @@ html:has(.quota-native),body:has(.quota-native),body:has(.quota-native) #root {b
 
 
 .office-connection button {border:1px solid var(--border);background:#f1f4f9;border-radius:8px;padding:5px 9px;color:var(--accent);cursor:pointer}
-@media(max-width:820px) {.quota-dock,.quota-dock-launcher{bottom:88px;right:12px}.quota-dock{max-height:65vh;width:min(340px,calc(100vw - 24px))}.quota-dock.is-collapsed{width:min(280px,calc(100vw - 24px))}}
+@media(max-width:820px) {.quota-dock,.quota-dock-launcher{bottom:var(--qd-bottom,88px);right:12px}.quota-dock{max-height:min(65vh,var(--qd-safe-height,100vh));width:min(340px,calc(100vw - 24px))}.quota-dock.is-collapsed{width:min(280px,calc(100vw - 24px))}}
 @media(prefers-reduced-motion:reduce) {.qd-head button,.quota-native-head button{transition:none}}
 
 /* The dock keeps its instrument layout while following the app's selected palette. */

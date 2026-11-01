@@ -403,8 +403,8 @@ export function App() {
                 await sendMessageFull(conversation.id, body)
               }}
               onStop={() => void stopRound(conversation.id)}
-              onCorrect={async (text, mode) => {
-                const { correction } = await correct(conversation.id, text, mode)
+              onCorrect={async (text, mode, targetAgentId) => {
+                const { correction } = await correct(conversation.id, text, mode, targetAgentId)
                 dispatch({ type: 'event', event: { type: 'correction', correction } })
               }}
               {...(state.corrections.get(conversation.id) ? { correction: state.corrections.get(conversation.id) } : {})}

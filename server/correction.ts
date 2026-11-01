@@ -6,6 +6,7 @@ import type { Orchestrator } from './orchestrator.js'
 import type { ProjectStore } from './projects.js'
 import type { Workflow } from './workflow.js'
 import type { CorrectionMode, CorrectionRecord, Message } from '../shared/types.js'
+import { part } from '../shared/notes.js'
 
 const KEEP = 200
 /** After this long without the old turn returning, the record says which turn has not confirmed cancellation. */
@@ -79,7 +80,7 @@ export class CorrectionLog {
 
 export interface CorrectorDeps {
   log: CorrectionLog
-  orchestrator: Pick<Orchestrator, 'record' | 'postNote' | 'interrupt' | 'isBusy' | 'waitForIdle' | 'replyTo'>
+  orchestrator: Pick<Orchestrator, 'record' | 'postNote' | 'interrupt' | 'isBusy' | 'waitForIdle' | 'replyTo'> & { interruptAgent?: Orchestrator['interruptAgent'] }
   workflow: Pick<Workflow, 'isRunning' | 'beginCorrection' | 'quiesce' | 'finishCorrection' | 'markCorrectionStopped'>
   projects: Pick<ProjectStore, 'byConversation'>
   approvals: Pick<Approvals, 'invalidate'>
@@ -107,16 +108,20 @@ export class Corrector {
 
   constructor(private readonly deps: CorrectorDeps) {}
 
-  correct(conversationId: string, text: string, opts: { mode?: CorrectionMode } = {}): CorrectionRecord {
+  correct(conversationId: string, text: string, opts: { mode?: CorrectionMode; targetAgentId?: string; targetName?: string } = {}): CorrectionRecord {
     const body = text.trim()
     if (!body) throw new Error('write the correction')
     const mode: CorrectionMode = opts.mode === 'replan' ? 'replan' : 'continue'
     const project = this.deps.projects.byConversation(conversationId)
+    if (project && opts.targetAgentId) throw new Error('targeted correction is not available during project workflow')
+    if (opts.targetAgentId && !this.deps.orchestrator.interruptAgent) throw new Error('targeted correction is unavailable')
+    const targetAgentId = opts.targetAgentId
+    const targetName = opts.targetName ?? targetAgentId ?? ''
     const id = `cor-${randomUUID().slice(0, 12)}`
     const now = Date.now()
     const message: Message = this.deps.orchestrator.record(conversationId, body, { correctionId: id })
     const chatBusy = this.deps.orchestrator.isBusy(conversationId)
-    const record: CorrectionRecord = { id, conversationId, ...(project ? { projectId: project.id } : {}), text: body, mode, status: 'stopping', revision: 0, wasRunning: chatBusy, messageId: message.id, createdAt: now, updatedAt: now }
+    const record: CorrectionRecord = { id, conversationId, ...(project ? { projectId: project.id } : {}), ...(targetAgentId ? { targetAgentId } : {}), text: body, mode, status: 'stopping', revision: 0, wasRunning: targetAgentId ? false : chatBusy, messageId: message.id, createdAt: now, updatedAt: now }
     this.deps.log.add(record)
     let wasRunning = chatBusy
     if (project && !project.archived) {
@@ -124,11 +129,13 @@ export class Corrector {
       wasRunning = wasRunning || begun.wasRunning
       this.deps.log.update(id, { revision: begun.revision, wasRunning, ...(begun.interrupted ? { interrupted: begun.interrupted } : {}) })
     }
-    this.deps.orchestrator.interrupt(conversationId)
-    this.deps.approvals.invalidate(conversationId, 'A correction superseded the run that asked for this approval.')
-    const ack = this.deps.log.update(id, wasRunning ? { status: 'stopping', detail: 'Stopping the current work.' } : { status: 'stopped', detail: 'Nothing was running.' }) ?? record
+    const interrupted = targetAgentId ? this.deps.orchestrator.interruptAgent!(conversationId, targetAgentId) : this.deps.orchestrator.interrupt(conversationId)
+    if (targetAgentId) wasRunning = interrupted.wasRunning
+    this.deps.approvals.invalidate(conversationId, 'A correction superseded the run that asked for this approval.', targetAgentId)
+    const detail = targetAgentId ? wasRunning ? `Stopping ${targetName}'s turn; other employees continue.` : `${targetName} was not running; their correction is queued.` : wasRunning ? 'Stopping the current work.' : 'Nothing was running.'
+    const ack = this.deps.log.update(id, { status: wasRunning ? 'stopping' : 'stopped', wasRunning, detail }) ?? record
     this.deps.emit(ack)
-    this.deps.orchestrator.postNote(conversationId, wasRunning ? 'Correction received. Stopping the current work; it continues with your correction once the old step has really stopped.' : 'Correction received. Nothing was running; continuing with it.')
+    this.deps.orchestrator.postNote(conversationId, [targetAgentId ? part(wasRunning ? 'note.correctionTargetStopping' : 'note.correctionTargetIdle', { name: targetName }) : part(wasRunning ? 'note.correctionStopping' : 'note.correctionIdle')])
 
     const prev = this.chains.get(conversationId) ?? Promise.resolve()
     const done = prev.then(() => this.apply(id))
@@ -172,8 +179,8 @@ export class Corrector {
     const stopped = this.deps.log.update(id, { status: 'stopped', detail: 'Stopped. The old step relinquished its turn and locks.' })
     if (stopped) this.deps.emit(stopped)
 
-    const latest = this.deps.log.latest(r.conversationId)
-    const newer = latest !== undefined && latest.id !== id && latest.createdAt >= r.createdAt
+    const records = this.deps.log.list()
+    const newer = records.slice(records.findIndex((item) => item.id === id) + 1).some((item) => item.conversationId === r.conversationId && (!r.targetAgentId || !item.targetAgentId || item.targetAgentId === r.targetAgentId))
     if (r.projectId) {
       const p = this.deps.workflow.finishCorrection(r.projectId, id)
       const status = p.corrections?.find((c) => c.id === id)?.status ?? 'applied'
@@ -208,6 +215,6 @@ export class Corrector {
 
   private replay(r: CorrectionRecord): void {
     const message: Message = { id: r.messageId ?? r.id, conversationId: r.conversationId, authorId: 'user', text: r.text, createdAt: r.createdAt, status: 'done', correctionId: r.id }
-    this.deps.orchestrator.replyTo(r.conversationId, message, CHAT_NOTE)
+    this.deps.orchestrator.replyTo(r.conversationId, message, r.targetAgentId ? 'The boss corrected your reply. Answer only the corrected request; other employees continue their work.' : CHAT_NOTE, r.targetAgentId)
   }
 }

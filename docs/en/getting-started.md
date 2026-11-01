@@ -2,13 +2,13 @@
 
 [简体中文](../zh-CN/快速开始.md)
 
-Synodica is a shared workspace for reusable AI personas, group conversations and project work. This guide covers version 0.5.2 desktop packages and the source workflow. It does not configure an account or make a model call for you.
+Synodica is a shared workspace for reusable AI personas, group conversations and project work. This guide covers version 0.5.3 desktop packages and the source workflow. It does not configure an account or make a model call for you.
 
 Choose **Light**, **Dark** or **System** in the appearance setting. The quota dock and its floating desktop window follow the office's appearance preference when opened from the same office origin.
 
 ## Install the desktop app
 
-Use the package for your computer: **Apple silicon Mac**: `Synodica-0.5.2-mac-arm64.dmg`; **64-bit Windows**: `Synodica-0.5.2-win-x64.zip`. Download the files from the project's GitHub Releases page. On Mac, open the DMG and drag Synodica to Applications. On Windows, extract the ZIP and run `Synodica.exe`; keep the extracted folder together.
+Use the package for your computer: **Apple silicon Mac**: `Synodica-0.5.3-mac-arm64.dmg`; **64-bit Windows**: `Synodica-0.5.3-win-x64.zip`. Download them from the project's GitHub Releases page when listed. On Mac, open the DMG and drag Synodica to Applications. On Windows, extract the ZIP and run `Synodica.exe`; keep the extracted folder together.
 
 These builds are unsigned; the Mac build is also not notarized. Your operating system may warn you or refuse to open it. Only continue if you trust the source and have checked the release; do not disable or bypass the operating system's security protections. Windows package contents were checked, but Windows hardware operation has not yet been tested. This release targets Apple silicon, not Intel Macs. Windows does not discover a Codex CLI bundled inside ChatGPT/Codex Desktop.
 
@@ -26,6 +26,19 @@ npm start
 ```
 
 Open the local address printed by the server. The `pet:install` step installs the pinned desktop-pet runtime. Keep `team.json`, `data/`, provider credentials and generated release packages private. To run the native desktop shell from a built checkout, use `npm run desktop`.
+
+### Update an existing source checkout
+
+Stop the running server, open the existing checkout and run:
+
+```sh
+git pull --ff-only
+npm ci
+npm run build
+npm start
+```
+
+Keep the office data directory and provider credentials in place; do not overwrite private runtime data with a public source checkout. For desktop packages, download the versioned installer listed on the Releases page and follow the platform steps above.
 
 ## Connect providers on the machine that runs the office
 
@@ -91,7 +104,13 @@ For a shared office, deploy the backend on a server with HTTPS, then connect the
 Synodica's original contributions use the source-available [PolyForm Noncommercial 1.0.0 license](../../LICENSE), with attribution in [NOTICE](../../NOTICE). Redistribution must credit Synodica and retain the original repository link, NOTICE and license. Commercial use of those contributions requires permission; the project is not OSI-approved open source. Upstream OpenGrokBot retains separate MIT rights in [licenses/OpenGrokBot-MIT.txt](../../licenses/OpenGrokBot-MIT.txt).
 
 
-### What is new in 0.5.2
+### What is new in 0.5.3
+
+Group discussions can continue across turns when you explicitly ask the group to discuss a point, even if you do not generate another `@everyone` mention. At least two unmuted participants are needed; this path does not call the router to pick a model. The default reply budget is four turns, and message/per-person budgets also apply. The end notice tells you to continue discussion when appropriate. A clear stop or negative response is treated as an instruction to stop, not as a debate prompt. Multiple `@Name` targets use global scope.
+
+In an ordinary group, an `@Name` correction or reply quoting that employee targets only that person and required approvals; other members can continue. The corrected employee waits for the current round and existing reply queue to finish, then gets a single targeted turn instead of starting in parallel. A project-workflow correction still applies to the whole project. A direct employee reply stays exclusive to that employee, and a single `@Name` takes precedence over broad discussion. Invalid targets and forged quote references are rejected; multiple distinct targets do not cancel each other's work.
+
+### What was added in 0.5.2
 
 On macOS, Synodica uses `codex` from `PATH` first; if it is unavailable there, it can discover the CLI bundled with an installed ChatGPT or Codex desktop app. It reuses an available Codex login without exporting tokens or installing a second CLI, and calls the CLI engine rather than the desktop UI. This discovery is not supported on Windows.
 

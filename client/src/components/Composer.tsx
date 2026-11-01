@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import type { Attachment, Conversation, CorrectionMode, CorrectionRecord, Message, Team } from '../../../shared/types'
+import { localizedText } from '../../../shared/notes'
 import { uploadFile } from '../api'
+import { selectCorrectionTarget } from '../correctionTarget'
 import { getLocale, t } from '../i18n'
 import { conversationTitle, personFor } from '../people'
 import { Avatar } from './Avatar'
@@ -21,7 +23,7 @@ interface ComposerProps {
   onSend: (body: { text: string; attachments?: Attachment[]; replyTo?: Message['replyTo'] }) => Promise<void>
   onStop: () => void
   /** Interrupt the running work and continue with this correction (same chat, same project). */
-  onCorrect: (text: string, mode: CorrectionMode) => Promise<void>
+  onCorrect: (text: string, mode: CorrectionMode, targetAgentId?: string) => Promise<void>
   /** The latest correction in this conversation, for the Stopping / Stopped line. */
   correction?: CorrectionRecord
   onResumeCorrection?: (id: string) => void
@@ -185,6 +187,7 @@ export function Composer({ team, conversation, busy, replyTo, onClearReply, onSe
    * queues it the old way. Workflow commands (/kickoff…) and file-only messages are always sent.
    */
   const correcting = busy && text.trim().length > 0 && !text.trim().startsWith('/') && attachments.length === 0
+  const correctionTarget = correcting ? selectCorrectionTarget(text, replyTo?.authorId, conversation, team.agents) : undefined
   const submit = async (mode: 'auto' | 'queue' = 'auto') => {
     const value = text.trim()
     if ((value.length === 0 && attachments.length === 0) || sending || uploading > 0) return
@@ -192,7 +195,7 @@ export function Composer({ team, conversation, busy, replyTo, onClearReply, onSe
     setError(null)
     try {
       if (mode === 'auto' && correcting) {
-        await onCorrect(value, scopeChange ? 'replan' : 'continue')
+        await onCorrect(value, scopeChange ? 'replan' : 'continue', correctionTarget?.id)
         setText('')
         setScopeChange(false)
         onClearReply()
@@ -242,15 +245,16 @@ export function Composer({ team, conversation, busy, replyTo, onClearReply, onSe
   }
 
   const replyPerson = replyTo ? (replyTo.authorId === 'user' ? team.owner.name : personFor(team, replyTo.authorId).name) : null
+  const currentCorrectionTarget = correction?.targetAgentId ? team.agents.find((agent) => agent.id === correction.targetAgentId && conversation.memberIds.includes(agent.id)) : undefined
   const correctionLine = (() => {
     if (!correction) return null
     // Applied corrections are shown briefly (until the next update of this conversation's state).
-    if (correction.status === 'stopping') return { cls: 'is-stopping', text: t('correction.stopping', { detail: correction.detail ?? '' }) }
-    if (correction.status === 'stopped') return { cls: '', text: t('correction.stopped') }
+    if (correction.status === 'stopping') return { cls: 'is-stopping', text: currentCorrectionTarget ? t('correction.targetStopping', { name: currentCorrectionTarget.name }) : t('correction.stopping', { detail: localizedText(getLocale(), correction.detail ?? '', correction.detailNote) }) }
+    if (correction.status === 'stopped') return { cls: '', text: currentCorrectionTarget ? t('correction.targetQueued', { name: currentCorrectionTarget.name }) : t('correction.stopped') }
     if (correction.status === 'pending-restart') return { cls: 'is-stopping', text: t('correction.pending') }
     if (Date.now() - correction.updatedAt > 15000) return null
     if (correction.status === 'superseded') return { cls: '', text: t('correction.superseded') }
-    return { cls: '', text: correction.mode === 'replan' ? t('correction.replan') : t('correction.applied') }
+    return { cls: '', text: currentCorrectionTarget ? t('correction.targetApplied', { name: currentCorrectionTarget.name }) : correction.mode === 'replan' ? t('correction.replan') : t('correction.applied') }
   })()
 
   return (
@@ -322,6 +326,7 @@ export function Composer({ team, conversation, busy, replyTo, onClearReply, onSe
       )}
       {correcting && (
         <div className="correction-options">
+          <span className="hint">{conversation.projectId ? t('composer.correctProjectScope') : correctionTarget ? t('composer.correctTargetScope', { name: correctionTarget.name }) : t('composer.correctHint')}</span>
           {conversation.projectId && (
             <label>
               <input type="checkbox" checked={scopeChange} onChange={(e) => setScopeChange(e.target.checked)} /> {t('composer.scope')}
@@ -384,8 +389,8 @@ export function Composer({ team, conversation, busy, replyTo, onClearReply, onSe
           </button>
         )}
         {correcting && (
-          <button type="button" className="composer-action is-correct" onClick={() => void submit()} disabled={sending} title={t('composer.correctHint')}>
-            {t('composer.correct')}
+          <button type="button" className="composer-action is-correct" onClick={() => void submit()} disabled={sending} title={correctionTarget ? t('composer.correctTargetHint', { name: correctionTarget.name }) : t('composer.correctHint')}>
+            {correctionTarget ? t('composer.correctTarget', { name: correctionTarget.name }) : t('composer.correct')}
           </button>
         )}
         {/* While the team works you can still type: Enter interrupts and corrects; files and commands are sent. */}

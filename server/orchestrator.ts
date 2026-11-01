@@ -8,7 +8,8 @@ import { collectAttachments } from './files.js'
 import type { Memory } from './memory.js'
 import { canWrite, WorkspaceLocks } from './locks.js'
 import { findMentions } from './mentions.js'
-import { explicitEveryone, routeSpeakers, type RouteMode } from './router.js'
+import { explicitDebate, explicitEveryone, routeSpeakers, type RouteMode } from './router.js'
+import { part } from '../shared/notes.js'
 import type { Store } from './store.js'
 import { summarizeUsage } from './usage.js'
 import type { RunTurnParams, TurnResult } from './providers/types.js'
@@ -21,19 +22,24 @@ interface RoundState {
   running: boolean
   abort: AbortController | null
   pending: { message: Message; forced?: Agent[]; note?: string }[]
+  active: Map<string, Set<AbortController>>
+  suppressed: Set<string>
 }
 
 /**
  * Decide who speaks first for an owner message without the router (DMs, mentions, the
  * non-smart group modes). Returns null when the smart router should decide. Exported for tests.
  */
-export function initialQueue(team: Team, conversation: Conversation, userText: string): Agent[] | null {
+export function initialQueue(team: Team, conversation: Conversation, userText: string, replyTargetId?: string): Agent[] | null {
   const members = team.agents.filter((a) => conversation.memberIds.includes(a.id))
   if (conversation.kind === 'dm') return members
   const mentioned = findMentions(userText, members)
   if (mentioned.length > 0) return mentioned
+  const replyTarget = members.find((a) => a.id === replyTargetId)
+  if (replyTarget) return [replyTarget]
   const unmuted = members.filter((a) => !a.muted)
   if (explicitEveryone(userText)) return unmuted
+  if (unmuted.length >= 2 && explicitDebate(userText)) return unmuted
   if (team.settings.groupMode === 'mentions-only') return unmuted.slice(0, 1)
   if (team.settings.groupMode === 'everyone') return unmuted
   return null
@@ -51,6 +57,7 @@ export function expandSkills(team: Team, text: string): string {
 /** Ordinary chats only: small, clear build requests may still be done right away. */
 const BUILD_NOTE = 'Dispatcher: the boss asked for something to be made. If it is small and clear, build it now with your tools, then reply with the full path and one or two sentences. If it is a multi-part project or has real trade-offs, say so in one line and suggest starting a project (kickoff) instead of building in chat.'
 const ROUTINE_NOTE = 'This is a scheduled routine, not a live chat. Do the job fully with your tools, then post the result here. If a source is unavailable, say so instead of guessing.'
+const DEBATE_NOTE = 'Respond to another participant\'s latest argument with one new, concrete reason or objection. If nothing material remains, reply exactly [skip].'
 
 const FALLBACK_PROVIDER: ProviderDef = { kind: 'claude', label: 'Claude (subscription)' }
 
@@ -249,10 +256,23 @@ export class Orchestrator {
     return { wasRunning }
   }
 
-  /** Start a fresh round for an already recorded owner message (the corrected instruction). */
-  replyTo(conversationId: string, message: Message, note?: string): void {
+  /** Stop one employee's current and queued turns while the other participants continue. */
+  interruptAgent(conversationId: string, agentId: string): { wasRunning: boolean } {
     const state = this.state(conversationId)
-    const job = { message, ...(note ? { note } : {}) }
+    const active = state.active.get(agentId)
+    const wasRunning = (active?.size ?? 0) > 0
+    if (state.running) state.suppressed.add(agentId)
+    for (const controller of active ?? []) controller.abort()
+    return { wasRunning }
+  }
+
+  /** Start a fresh round for an already recorded owner message (the corrected instruction). */
+  replyTo(conversationId: string, message: Message, note?: string, targetAgentId?: string): void {
+    const state = this.state(conversationId)
+    const conversation = this.store.get(conversationId)
+    const target = targetAgentId && this.getTeam().agents.find((a) => a.id === targetAgentId && conversation?.memberIds.includes(a.id))
+    if (targetAgentId && !target) throw new Error(`unknown conversation member ${targetAgentId}`)
+    const job = { message, ...(note ? { note } : {}), ...(target ? { forced: [target] } : {}) }
     if (state.running) state.pending.push(job)
     else void this.runRound(conversationId, job)
   }
@@ -330,7 +350,7 @@ export class Orchestrator {
   private state(conversationId: string): RoundState {
     let s = this.rounds.get(conversationId)
     if (!s) {
-      s = { running: false, abort: null, pending: [] }
+      s = { running: false, abort: null, pending: [], active: new Map(), suppressed: new Set() }
       this.rounds.set(conversationId, s)
     }
     return s
@@ -349,6 +369,8 @@ export class Orchestrator {
     } finally {
       state.running = false
       state.abort = null
+      state.active.clear()
+      state.suppressed.clear()
       if (!this.isBusy(conversationId)) emit({ type: 'round', conversationId, running: false })
       this.remember(conversationId, startIndex - 1, spoke)
       const next = state.pending.shift()
@@ -374,9 +396,12 @@ export class Orchestrator {
     const team = this.getTeam()
     const members = team.agents.filter((a) => conversation.memberIds.includes(a.id))
     const project = this.hooks.projectFor?.(conversationId)
-    let queue = job.forced ?? initialQueue(team, conversation, job.message.text)
+    const quoted = conversation.messages.find((m) => m.id === job.message.replyTo?.messageId)
+    const replyTargetId = quoted && quoted.authorId === job.message.replyTo?.authorId ? quoted.authorId : undefined
+    let queue = job.forced ?? initialQueue(team, conversation, job.message.text, replyTargetId)
     const atEveryone = /(^|[^a-z0-9_])@everyone(?![a-z0-9_])/i.test(job.message.text)
-    const exclusive = conversation.kind === 'dm' || job.forced !== undefined || (!atEveryone && findMentions(job.message.text, members).length === 1)
+    const mentions = findMentions(job.message.text, members)
+    const exclusive = conversation.kind === 'dm' || job.forced !== undefined || (!atEveryone && (mentions.length === 1 || (mentions.length === 0 && replyTargetId !== undefined)))
     let mode: RouteMode = 'discuss'
     let routedEveryone = false
     if (queue === null) {
@@ -390,15 +415,42 @@ export class Orchestrator {
     if (everyone && atEveryone) queue = queue.filter((a) => !a.muted)
     const allMembersMode = team.settings.groupMode === 'everyone' && findMentions(job.message.text, members).length === 0
     const budget = everyone ? Math.min(12, Math.max(team.settings.maxMessagesPerRound, queue.length)) : allMembersMode ? Math.min(12, team.settings.maxMessagesPerRound) : team.settings.maxMessagesPerRound
+    const debate = !exclusive && job.message.authorId === 'user' && queue.length >= 2 && explicitDebate(job.message.text)
+    const participants = debate ? [...queue] : []
+    const state = this.state(conversationId)
     const turns = new Map<string, number>()
     let count = 0
     let first = true
+
+    const runSpeaker = async (agent: Agent, opts: TurnOptions): Promise<TurnReport> => {
+      if (signal.aborted || state.suppressed.has(agent.id)) return { text: '', activity: [] }
+      const controller = new AbortController()
+      const onAbort = (): void => controller.abort()
+      signal.addEventListener('abort', onAbort, { once: true })
+      let active = state.active.get(agent.id)
+      if (!active) { active = new Set(); state.active.set(agent.id, active) }
+      active.add(controller)
+      try {
+        return await this.turn(conversationId, agent, controller.signal, opts)
+      } finally {
+        active.delete(controller)
+        if (active.size === 0) state.active.delete(agent.id)
+        signal.removeEventListener('abort', onAbort)
+      }
+    }
 
     const followMentions = (agent: Agent, reply: string): void => {
       if (!reply || signal.aborted || this.state(conversationId).pending.length > 0) return
       if (project) this.hooks.onReply?.(conversationId, agent.id, reply)
       if (exclusive) return
+      if (debate) {
+        const index = participants.findIndex((p) => p.id === agent.id)
+        const next = participants[(index + 1) % participants.length]
+        if (next && !state.suppressed.has(next.id) && (turns.get(next.id) ?? 0) < team.settings.maxTurnsPerAgentPerRound && !queue.some((q) => q.id === next.id)) queue.push(next)
+        return
+      }
       for (const m of findMentions(reply, members, agent.id)) {
+        if (state.suppressed.has(m.id)) continue
         const taken = turns.get(m.id) ?? 0
         if (taken >= team.settings.maxTurnsPerAgentPerRound) continue
         if (queue.some((q) => q.id === m.id)) continue
@@ -416,7 +468,7 @@ export class Orchestrator {
         const buildNote = !project && index === 0 && mode === 'build' && canWrite(agent) ? BUILD_NOTE : undefined
         const note = index === 0 ? (job.note ?? buildNote) : undefined
         const opts: TurnOptions = { transcript, ...(job.message.authorId === 'user' ? { inputMessageId: job.message.id } : {}), ...(note ? { note } : {}), ...(project ? { context: project.context, cwd: project.workspace, safe: true, projectId: project.id } : {}) }
-        const run = async (): Promise<string> => (await this.turn(conversationId, agent, signal, opts)).text
+        const run = async (): Promise<string> => (await runSpeaker(agent, opts)).text
         if (!canWrite(agent)) return run()
         const reply = writerTail.then(() => signal.aborted || this.state(conversationId).pending.length > 0 ? '' : run())
         writerTail = reply.then(() => undefined, () => undefined)
@@ -432,23 +484,32 @@ export class Orchestrator {
         const reply = results[i]
         if (!agent || !reply) continue
         spoke.add(agent.id)
-        followMentions(agent, reply)
+        if (debate) {
+          if (project) this.hooks.onReply?.(conversationId, agent.id, reply)
+        } else followMentions(agent, reply)
+      }
+      if (debate && results.filter(Boolean).length >= 2 && !signal.aborted && state.pending.length === 0) {
+        for (let i = 0; i < opening.length; i++) {
+          const agent = opening[i]
+          if (agent && results[i] && !state.suppressed.has(agent.id) && (turns.get(agent.id) ?? 0) < team.settings.maxTurnsPerAgentPerRound) queue.push(agent)
+        }
       }
     }
 
     while (queue.length > 0 && count < budget && !signal.aborted) {
       const agent = queue.shift()
       if (!agent) break
+      if (state.suppressed.has(agent.id)) continue
       // A newer owner message arrived mid-round: let the next round handle it with fresh context.
       if (this.state(conversationId).pending.length > 0) break
       count++
       turns.set(agent.id, (turns.get(agent.id) ?? 0) + 1)
       // Project chats run work through the task board, so no build-now nudge there.
       const buildNote = !project && first && mode === 'build' && agent.tools.some((t) => ['Edit', 'Write'].includes(t)) ? BUILD_NOTE : undefined
-      const note = first ? (job.note ?? buildNote) : undefined
+      const note = first ? (job.note ?? buildNote) : debate && (turns.get(agent.id) ?? 0) > 1 ? DEBATE_NOTE : undefined
       first = false
       const opts: TurnOptions = { ...(job.message.authorId === 'user' ? { inputMessageId: job.message.id } : {}), ...(note ? { note } : {}), ...(project ? { context: project.context, cwd: project.workspace, safe: true, projectId: project.id } : {}) }
-      const reply = (await this.turn(conversationId, agent, signal, opts)).text
+      const reply = (await runSpeaker(agent, opts)).text
       if (reply) spoke.add(agent.id)
       // Interrupted (Stop or a correction): a late reply stays in the history but changes nothing.
       if (signal.aborted) break
@@ -458,6 +519,7 @@ export class Orchestrator {
     if (queue.length > 0 && count >= budget && !signal.aborted && this.state(conversationId).pending.length === 0) {
       this.postNote(conversationId, `Round limit reached; no turn was available for: ${[...new Set(queue.map((a) => a.name))].join(', ')}.`)
     }
+    if (debate && !signal.aborted && state.pending.length === 0) this.postNote(conversationId, [part('note.discussionRoundComplete', { turns: count })])
   }
 
   /** Runs one agent turn, streaming into a message. text is '' if the agent skipped or failed. */

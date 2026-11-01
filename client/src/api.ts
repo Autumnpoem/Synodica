@@ -287,8 +287,8 @@ export function applyTeamTemplate(templateId: string, assignments: Record<string
 
 // ---- interrupt and correct ----
 
-export function correct(conversationId: string, text: string, mode: CorrectionMode = 'continue'): Promise<{ correction: CorrectionRecord }> {
-  return call(`/api/conversations/${encodeURIComponent(conversationId)}/correct`, json('POST', { text, mode }))
+export function correct(conversationId: string, text: string, mode: CorrectionMode = 'continue', targetAgentId?: string): Promise<{ correction: CorrectionRecord }> {
+  return call(`/api/conversations/${encodeURIComponent(conversationId)}/correct`, json('POST', { text, mode, ...(targetAgentId ? { targetAgentId } : {}) }))
 }
 
 export function resumeCorrection(id: string): Promise<{ correction: CorrectionRecord }> {

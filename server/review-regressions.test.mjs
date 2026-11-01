@@ -83,7 +83,7 @@ test('switching the desktop view to a remote office does not terminate local wor
 
 test('quota dock keeps its header reachable when a loaded report increases its height', () => {
   let current = { x: 0, y: -400 }, rect = { left: 12, right: 308, top: 8, bottom: 108 }, observe
-  const context = { dock: { current: { getBoundingClientRect: () => rect } }, setPosition: (fn) => { const next=fn(current), dx=next.x-current.x, dy=next.y-current.y;rect={left:rect.left+dx,right:rect.right+dx,top:rect.top+dy,bottom:rect.bottom+dy};current=next }, clampDockPosition, window: { innerWidth: 320, innerHeight: 600, addEventListener() {}, removeEventListener() {} }, ResizeObserver: class { constructor(fn) { observe=fn } observe() {} disconnect() {} } }
+  const context = { layout: { composerTop: null }, dock: { current: { getBoundingClientRect: () => rect } }, setPosition: (fn) => { const next=fn(current), dx=next.x-current.x, dy=next.y-current.y;rect={left:rect.left+dx,right:rect.right+dx,top:rect.top+dy,bottom:rect.bottom+dy};current=next }, clampDockPosition, window: { innerWidth: 320, innerHeight: 600, addEventListener() {}, removeEventListener() {} }, ResizeObserver: class { constructor(fn) { observe=fn } observe() {} disconnect() {} } }
   const source=read('client/src/components/QuotaDock.tsx'),start=source.indexOf('    const fit =',source.indexOf('useLayoutEffect(() =>')),end=source.indexOf('\n  }, [',start)
   const dispose=runInNewContext(js('(function(){'+source.slice(start,end)+'\n})()'),context)
   rect={...rect,top:-222} // a late report grows upward from the dragged bottom anchor

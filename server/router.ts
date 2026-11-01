@@ -78,6 +78,12 @@ export function explicitEveryone(text: string): boolean {
   return english.test(text) || chinese.test(text)
 }
 
+/** A request for participants to respond to one another, not merely introduce their views. */
+export function explicitDebate(text: string): boolean {
+  if (/(?:停止|終止|终止|别|別|不要|无需|無需|不必)(?:再|继续|繼續)?(?:辩论|辯論|讨论|討論)|\b(?:do not|don't|dont|stop|no|avoid|without)\s+(?:(?:the|further)\s+)?(?:debate|debating|discuss|discussing|discussion)\b/i.test(text)) return false
+  return /\b(?:debate|rebut|argue|discuss|discussion|challenge each other|respond to each other)\b|(?:辩论|辯論|讨论|討論|互相回应|互相回應|继续讨论|繼續討論)/i.test(text)
+}
+
 function words(s: string): string[] {
   return s
     .toLowerCase()

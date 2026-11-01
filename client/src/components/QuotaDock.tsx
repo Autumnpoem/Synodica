@@ -1,10 +1,10 @@
-import { useEffect, useLayoutEffect, useRef, useState, type PointerEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent } from 'react'
 import type { UsageReport, UsageRow, UsageWindow } from '../../../shared/usage'
 import type { MessageKey } from '../../../shared/i18n'
 import { formatPercent } from '../../../shared/usage'
 import { useNow } from '../companion'
 import { t as translate, useLocale } from '../i18n'
-import { clampDockPosition } from '../quotaPosition'
+import { clampDockPosition, dockSafeBottom } from '../quotaPosition'
 import { API_PRESETS } from '../../../shared/catalog'
 import { apiPresetLabel, providerLabel } from '../../../shared/catalog-i18n'
 
@@ -88,8 +88,30 @@ export function QuotaDock({ report, clockOffset, onOpenUsage, onOpenNative }: Do
   const [visible, setVisible] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
+  const [layout, setLayout] = useState<{ composerTop: number | null; viewportHeight: number }>({ composerTop: null, viewportHeight: 0 })
   const dock = useRef<HTMLElement | null>(null)
   const drag = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null)
+  useLayoutEffect(() => {
+    const main = document.querySelector('.main')
+    let observed: Element | null = null
+    const sync = () => {
+      const composer = main?.querySelector('.composer-wrap') ?? null
+      if (composer !== observed) {
+        observer.disconnect()
+        observed = composer
+        if (composer) observer.observe(composer)
+      }
+      const composerTop = composer?.getBoundingClientRect().top ?? null
+      const viewportHeight = window.innerHeight
+      setLayout((current) => current.composerTop === composerTop && current.viewportHeight === viewportHeight ? current : { composerTop, viewportHeight })
+    }
+    const observer = new ResizeObserver(sync)
+    const changes = new MutationObserver(sync)
+    if (main) changes.observe(main, { childList: true })
+    window.addEventListener('resize', sync)
+    sync()
+    return () => { observer.disconnect(); changes.disconnect(); window.removeEventListener('resize', sync) }
+  }, [])
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem(STORAGE) || '{}') as { visible?: unknown; collapsed?: unknown; x?: unknown; y?: unknown }
@@ -106,7 +128,7 @@ export function QuotaDock({ report, clockOffset, onOpenUsage, onOpenNative }: Do
       if (!dock.current) return
       const rect = dock.current.getBoundingClientRect()
       setPosition((current) => {
-        const next = clampDockPosition(current, current, rect, { width: window.innerWidth, height: window.innerHeight })
+        const next = clampDockPosition(current, current, rect, { width: window.innerWidth, height: window.innerHeight }, layout.composerTop ?? undefined)
         return next.x === current.x && next.y === current.y ? current : next
       })
     }
@@ -115,7 +137,7 @@ export function QuotaDock({ report, clockOffset, onOpenUsage, onOpenNative }: Do
     if (dock.current) observer.observe(dock.current)
     window.addEventListener('resize', fit)
     return () => { observer.disconnect(); window.removeEventListener('resize', fit) }
-  }, [visible, collapsed])
+  }, [visible, collapsed, layout.composerTop, layout.viewportHeight])
   function startDrag(e: PointerEvent<HTMLElement>) {
     if ((e.target as HTMLElement).closest('button')) return
     drag.current = { x: e.clientX, y: e.clientY, startX: position.x, startY: position.y }
@@ -124,9 +146,12 @@ export function QuotaDock({ report, clockOffset, onOpenUsage, onOpenNative }: Do
   function moveDrag(e: PointerEvent<HTMLElement>) {
     if (!drag.current || !dock.current) return
     const next = { x: drag.current.startX + e.clientX - drag.current.x, y: drag.current.startY + e.clientY - drag.current.y }
-    setPosition(clampDockPosition(next, position, dock.current.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight }))
+    setPosition(clampDockPosition(next, position, dock.current.getBoundingClientRect(), { width: window.innerWidth, height: window.innerHeight }, layout.composerTop ?? undefined))
   }
-  return visible ? <aside ref={dock} className={`quota-dock${collapsed ? ' is-collapsed' : ''}`} style={{ transform: `translate(${position.x}px, ${position.y}px)` }} aria-label={t.title}>
+  const viewportHeight = layout.viewportHeight || window.innerHeight
+  const safeBottom = dockSafeBottom(layout.composerTop, viewportHeight)
+  const anchoredStyle = layout.composerTop === null ? {} : { '--qd-bottom': `${viewportHeight - safeBottom}px`, '--qd-safe-height': `${Math.max(0, safeBottom - 8)}px` }
+  return visible ? <aside ref={dock} className={`quota-dock${collapsed ? ' is-collapsed' : ''}`} style={{ ...anchoredStyle, transform: `translate(${position.x}px, ${position.y}px)` } as CSSProperties} aria-label={t.title}>
     <header className="qd-head" onPointerDown={startDrag} onPointerMove={moveDrag} onPointerUp={() => { drag.current = null }} onPointerCancel={() => { drag.current = null }}>
       <QuotaBrand title={t.title} />
       <div className="qd-actions">
@@ -138,5 +163,5 @@ export function QuotaDock({ report, clockOffset, onOpenUsage, onOpenNative }: Do
       {onOpenUsage && <button type="button" onClick={onOpenUsage}>{t.details}</button>}
       {onOpenNative && <button type="button" onClick={onOpenNative}>{t.native}</button>}
     </footer></>}
-  </aside> : <button type="button" className="quota-dock-launcher" onClick={() => setVisible(true)} aria-label={t.open}><span className="qd-launcher-light" aria-hidden="true" />{t.title}<span aria-hidden="true">↗</span></button>
+  </aside> : <button type="button" className="quota-dock-launcher" style={anchoredStyle as CSSProperties} onClick={() => setVisible(true)} aria-label={t.open}><span className="qd-launcher-light" aria-hidden="true" />{t.title}<span aria-hidden="true">↗</span></button>
 }

@@ -100,8 +100,8 @@ export class Approvals {
    * A correction superseded the runs in this conversation: deny every pending request there and
    * remember it as stale, so a late Allow click is refused with a reason instead of running old work.
    */
-  invalidate(conversationId: string, reason: string): ApprovalRequest[] {
-    const hit = [...this.pending.values()].filter((p) => p.request.conversationId === conversationId)
+  invalidate(conversationId: string, reason: string, agentId?: string): ApprovalRequest[] {
+    const hit = [...this.pending.values()].filter((p) => p.request.conversationId === conversationId && (agentId === undefined || p.request.agentId === agentId))
     for (const p of hit) {
       this.stale.set(p.request.id, reason)
       p.resolve(false)

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AgentActivity, ApprovalRequest, Conversation, Message, Project, Team, UsageSummary } from '../../../shared/types'
 import { capabilityNotes, effortLabel, providerLabel } from '../../../shared/catalog-i18n'
+import { localizedText } from '../../../shared/notes'
 import { activityLine } from '../activity'
 import { formatCost, formatDuration, formatTokens, modelLabel } from '../format'
 import { getLocale, t } from '../i18n'
@@ -211,7 +212,7 @@ function MessageGroup({ team, group, onReply }: { team: Team; group: Group; onRe
     <div className={`message-group ${mine ? 'is-mine' : 'is-agent'}${isRoutine ? ' is-routine' : ''}`}>
       {!mine && (
         <span className="message-label" style={{ color: person.color }}>
-          {person.label}
+          {group.authorId === 'workflow' ? t('common.workflow') : person.label}
         </span>
       )}
       {group.messages.map((m, i) => {
@@ -241,7 +242,7 @@ function MessageGroup({ team, group, onReply }: { team: Team; group: Group; onRe
                     ))}
                   </div>
                 )}
-                {m.text.length > 0 ? <RichText text={m.text} team={team} /> : m.status === 'streaming' ? <span className="working">{t('chat.working')}</span> : null}
+                {m.text.length > 0 ? <RichText text={m.authorId === 'workflow' ? localizedText(getLocale(), m.text, m.note) : m.text} team={team} /> : m.status === 'streaming' ? <span className="working">{t('chat.working')}</span> : null}
               </div>
               {shared.length > 0 && <AttachmentList items={shared} team={team} />}
               <div className="message-meta">

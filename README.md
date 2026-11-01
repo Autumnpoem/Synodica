@@ -6,11 +6,13 @@
 
 <p align="center"><a href="README.zh-CN.md">简体中文</a> · <a href="docs/en/getting-started.md">Getting started</a> · <a href="docs/zh-CN/subscriptions/README.md">Provider and subscription setup</a></p>
 
+**Current version: 0.5.3** · [Version-by-version changelog](CHANGELOG.md)
+
 Synodica brings multiple model providers and reusable AI personas into a shared workspace. Give each role its own provider, model and working style, then collaborate in direct chats, groups or projects. The goal is a traceable path from a question to a reviewed result, with people deciding what proceeds.
 
 ## Start in a few steps
 
-1. Get the 0.5.2 desktop build for your platform from [Releases](https://github.com/Autumnpoem/Synodica/releases), or [run Synodica from source](docs/en/getting-started.md).
+1. Get the 0.5.3 desktop build for your platform from [Releases](https://github.com/Autumnpoem/Synodica/releases) when listed, or [run Synodica from source](docs/en/getting-started.md).
 2. In **Settings → Providers**, connect the accounts or API keys you intend to use. CLI subscriptions use the official CLI login on the machine running the backend; a website login does not become API access.
 3. Open **Settings → Team → Default teams** and choose a starting preset. Review the provider and model defaults before saving.
 4. Start with a direct conversation, then create a group or project when you want several roles to work together.
@@ -28,6 +30,7 @@ In an employee profile, select a model from the catalog, refresh the list or ent
 
 - **Direct chat:** work one-to-one with a selected persona.
 - **Group chat:** one `@Name` and a direct message stay exclusive to that person for the reply round. `@everyone` opens a round for up to 12 unmuted members; replies can run concurrently, while members with file-writing tools take turns to protect the shared folder. Ordinary routing selects 1–3 relevant roles.
+- **Continue a discussion:** ask a group an explicit follow-up without tagging a person to continue the discussion across multiple turns. Multiple `@Name` targets use global scope. A clear stop or negative response ends the discussion. A targeted `@Name` correction or quoted reply only interrupts that person and required approvals; other members keep working. The corrected member waits for the current round and queued work to finish before replying alone.
 - **Images:** attach, paste or drag an image into the composer. Images from the current user message go only to the provider/model selected for that reply round. Unsupported models are identified; unknown support or a CLI read failure is not reported as successful image understanding.
 - **Projects:** describe the goal, choose participating roles and use the project board for planning, critique, task ownership, independent review and evidence.
 - **Open-floor planning discussion:** before the plan critic and decision owner decide, eligible project members can each take one read-only turn to raise evidence-based objections. The default limit is six invitees (configurable from 1–12). The lead must record a reasoned disposition for every objection; skipped replies do not imply agreement.
@@ -46,7 +49,7 @@ After discussion, the critic reviews the plan and the lead decides. Each objecti
 
 ## Install and learn
 
-For a hands-on introduction—including the `Synodica-0.5.2-mac-arm64.dmg` and `Synodica-0.5.2-win-x64.zip`, source install commands, account setup, mobile access and troubleshooting—see [Getting started](docs/en/getting-started.md). Desktop builds are unsigned; macOS builds are not notarized, and Windows hardware testing is pending. Do not disable operating-system security protections to install them.
+For a hands-on introduction—including the `Synodica-0.5.3-mac-arm64.dmg` and `Synodica-0.5.3-win-x64.zip`, source install commands, account setup, mobile access and troubleshooting—see [Getting started](docs/en/getting-started.md). Desktop builds are unsigned; macOS builds are not notarized, and Windows hardware testing is pending. Do not disable operating-system security protections to install them.
 
 - [Provider and subscription setup](docs/zh-CN/subscriptions/README.md)
 - [Ubuntu shared-office deployment](docs/zh-CN/Ubuntu部署.md)
@@ -57,7 +60,7 @@ The browser UI can run locally with Node.js 22 or newer. Follow the [source setu
 
 ## Project status
 
-The project version is **0.5.2**. On macOS, Codex can use the CLI bundled with an installed ChatGPT or Codex desktop app when no `codex` executable is available on `PATH`; Windows desktop-bundle discovery is not supported. Claude Code / Anthropic-compatible gateways can be configured as separate providers with an explicit endpoint and credential. Settings include Chinese localization and layout repairs. These are configuration and integration capabilities; no real gateway/account model call is claimed as verified. Computer Use from Codex Desktop is not integrated. Catalog entries do not guarantee model entitlement. Other known limits include no live Google-account quota report for Gemini subscriptions, no independent dsh-pet chat service, unsigned desktop packages, and no Windows hardware acceptance yet.
+The project version is **0.5.3**. This version improves multi-turn group discussion and targeted corrections; see the [changelog](CHANGELOG.md). On macOS, Codex can use the CLI bundled with an installed ChatGPT or Codex desktop app when no `codex` executable is available on `PATH`; Windows desktop-bundle discovery is not supported. Claude Code / Anthropic-compatible gateways can be configured as separate providers with an explicit endpoint and credential. These are configuration and integration capabilities; no real gateway/account model call is claimed as verified. Computer Use from Codex Desktop is not integrated. Catalog entries do not guarantee model entitlement. Other known limits include no live Google-account quota report for Gemini subscriptions, no independent dsh-pet chat service, unsigned desktop packages, and no Windows hardware acceptance yet.
 
 ## Credits and license
 
